@@ -1,0 +1,19 @@
+[project]
+name = "loan-prediction-approval"
+version = "0.1.0"
+description = "Project part of reproductibility ENSAE class"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pandas>=3.0.1",
+    "s3fs>=2026.2.0",
+    "scikit-learn>=1.8.0",
+]
+
+[dependency-groups]
+dev = [
+    "dotenv>=0.9.9",
+    "ipykernel>=7.2.0",
+    "ruff>=0.15.4",
+    "seaborn>=0.13.2",
+]
