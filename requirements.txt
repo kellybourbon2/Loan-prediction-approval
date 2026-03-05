@@ -1,0 +1,12 @@
+s3fs
+scikit-learn
+pandas < 3.0.0
+hyperopt
+mlflow
+
+xgboost
+catboost
+seaborn
+matplotlib
+
+ipykernel
