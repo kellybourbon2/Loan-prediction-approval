@@ -19,3 +19,15 @@ The dataset used in this project is available in this Kaggle competition : https
 Please download the train set `train.csv` and the test set `test.csv`, and store them in a bucket on SSPCloud.
 
 `.env` file should contain the following variables : AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN, AWS_S3_ENDPOINT, AWS_BUCKET_NAME, those variables are used to load the data.
+
+## MLFlow initialisation
+To test this version, please follow the previous steps and run :
+```bash
+python src/main.py 
+```
+and in another terminal, run 
+```bash
+mlflow ui --backend-store-uri sqlite:///mlflow.db
+```
+and open this link in your browser : http://127.0.0.1:5000
+

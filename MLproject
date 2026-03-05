@@ -1,0 +1,16 @@
+name: Loan Prediction Approval Experiments
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.13
+  - pip
+  - pip:
+      - -r requirements.txt
+
+entry_points:
+  main:
+    parameters:
+      train_on_first_n: {type: int, default: 10}
+    command: "python src/main.py"
