@@ -5,7 +5,7 @@ from hyperopt import Trials, fmin, space_eval, tpe
 
 import mlflow
 from config import MAX_EVALS
-from data_processing.data_load import data_laoding
+from data_processing.data_load import data_loading
 from data_processing.preprocessing import preprocess_data
 from model.evaluate import evaluate_model
 from model.search_space import search_space
@@ -16,7 +16,7 @@ if __name__ == "__main__":
     mlflow.set_tracking_uri("sqlite:///mlflow.db")
     mlflow.set_experiment("Loan Prediction Approval Experiments")
 
-    df_train = data_laoding(set="train")
+    df_train = data_loading(set="train")
     X_train, X_test, y_train, y_test, encoder = preprocess_data(df_train)
 
     trials = Trials()

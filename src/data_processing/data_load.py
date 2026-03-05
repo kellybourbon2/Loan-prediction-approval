@@ -5,7 +5,7 @@ import s3fs
 from dotenv import load_dotenv
 
 
-def data_laoding(set: str = "train") -> pd.DataFrame:
+def data_loading(set: str = "train") -> pd.DataFrame:
     # load the environment variables from the .env file
     load_dotenv(override=True)
 
