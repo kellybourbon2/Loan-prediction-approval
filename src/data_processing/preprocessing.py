@@ -20,7 +20,7 @@ from config import (  # noqa: E402
     RANDOM_STATE,
     TARGET_COLUMN,
     TEST_SIZE,
-) 
+)
 
 
 class DataPreprocessor:
