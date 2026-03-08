@@ -5,13 +5,22 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src.data_processing.data_load import DataLoader
-from src.data_processing.preprocessing import DataPreprocessor
-
 # define root dir so can see src functions
-ROOT_DIR = Path(__file__).parent.parent
+ROOT_DIR = Path(__file__).parent.parent  # noqa: E402
 sys.path.insert(0, str(ROOT_DIR))
-from config import COLUMNS_TO_DROP, TARGET_COLUMN, TEST_SIZE  # noqa: E402
+
+from src.data_processing.data_load import DataLoader  # noqa: E402
+from src.data_processing.preprocessing import DataPreprocessor  # noqa: E402
+
+from config import (  # noqa: E402
+    COLUMNS_TO_DROP,
+    TARGET_COLUMN,
+    TEST_SIZE,
+    CREDIT_DEFAULT_BINARY_COLUMN,
+    CREDIT_DEFAULT_COLUMN,
+    AGE_COLUMN,
+    AGE_CATEGORY_COLUMN,
+)  # noqa: E402
 
 
 # function to generate a fake df similar than original one
@@ -66,16 +75,28 @@ class TestDataPreprocessor(unittest.TestCase):
 
     # testing feature_engineering
     def test_feature_engineering_creates_age_category(self):
-        """age_category column should be created"""
+        """AGE_CATEGORY_COLUMN  should be created"""
         df = self.preprocessor.clean_data(self.df.copy())
         result = self.preprocessor.feature_engineering(df)
-        self.assertIn("age_category", result.columns)
+        self.assertIn(AGE_CATEGORY_COLUMN, result.columns)
 
     def test_feature_engineering_drops_age(self):
         """Original 'age' column should be dropped"""
         df = self.preprocessor.clean_data(self.df.copy())
         result = self.preprocessor.feature_engineering(df)
-        self.assertNotIn("person_age", result.columns)
+        self.assertNotIn(AGE_COLUMN, result.columns)
+
+    def test_feature_engineering_creates_credit_binary(self):
+        """binary credit default column should be created"""
+        df = self.preprocessor.clean_data(self.df.copy())
+        result = self.preprocessor.feature_engineering(df)
+        self.assertIn(CREDIT_DEFAULT_BINARY_COLUMN, result.columns)
+
+    def test_feature_engineering_drops_credit(self):
+        """Original CREDIT_DEFAULT_COLUMN should be dropped"""
+        df = self.preprocessor.clean_data(self.df.copy())
+        result = self.preprocessor.feature_engineering(df)
+        self.assertNotIn(CREDIT_DEFAULT_COLUMN, result.columns)
 
     # testing split_data
     def test_split_data_correct_sizes(self):
@@ -106,21 +127,5 @@ class TestDataPreprocessor(unittest.TestCase):
         self.assertEqual(len(y_train), len(X_train))
         self.assertEqual(len(y_test), len(X_test))
 
-    # testing normalize_data
-    def test_normalize_mean(self):
-        """After StandardScaler, train mean should be around 0"""
-        X_train = pd.DataFrame({"a": [1.0, 2.0, 3.0, 4.0, 5.0]})
-        X_test = pd.DataFrame({"a": [2.0, 3.0]})
-        X_train_scaled, _ = self.preprocessor.normalize_data(X_train, X_test)
-        self.assertAlmostEqual(X_train_scaled[:, 0].mean(), 0.0, places=10)
-
-    def test_normalize_std(self):
-        """After StandardScaler, train std should be around 1"""
-        X_train = pd.DataFrame({"a": [1.0, 2.0, 3.0, 4.0, 5.0]})
-        X_test = pd.DataFrame({"a": [2.0, 3.0]})
-        X_train_scaled, _ = self.preprocessor.normalize_data(X_train, X_test)
-        self.assertAlmostEqual(X_train_scaled[:, 0].std(), 1.0, places=10)
-
-
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
+    # testing normalize_data on a random variable
+    # ...

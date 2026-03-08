@@ -6,6 +6,10 @@ TARGET_COLUMN = "loan_status"
 AGE_COLUMN = "person_age"
 BINS_AGE = [18, 25, 35, 50, 125]
 CATEGORIES_AGE = ["young", "adult", "mature", "senior"]
+AGE_CATEGORY_COLUMN = "age_category"
+
+CREDIT_DEFAULT_COLUMN = "cb_person_default_on_file"
+CREDIT_DEFAULT_BINARY_COLUMN = "record_credit_default"
 
 # Encoding
 CATEGORICAL_DTYPE = "object"
