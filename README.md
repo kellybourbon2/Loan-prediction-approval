@@ -1,6 +1,10 @@
 # Loan-prediction
 Project part of Ensae "Mise en production" course
 
+## Architecture MLOps
+
+![MLOps Architecture](mlops.png)
+
 # How to start:
 Clone the repo and follow the following steps:
 ## Environement creation and activation
@@ -30,4 +34,6 @@ and in another terminal, run
 mlflow ui --backend-store-uri sqlite:///mlflow.db
 ```
 and open this link in your browser : http://127.0.0.1:5000
+
+
 
