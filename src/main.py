@@ -4,24 +4,30 @@ import joblib
 from hyperopt import Trials, fmin, space_eval, tpe
 
 import mlflow
-from config import MAX_EVALS
+from config import (
+    MAX_EVALS,
+    MLFLOW_EXPERIMENT_NAME,
+    MLFLOW_MODEL_NAME,
+    MLFLOW_TRACKING_URI,
+)
 from data_processing.data_load import data_loading
 from data_processing.preprocessing import preprocess_data
 from model.evaluate import evaluate_model
+from model.registry import promote_to_champion, register_model
 from model.search_space import search_space
 from model.train import train_model
 from model.tune import build_model, objective
 
 if __name__ == "__main__":
-    mlflow.set_tracking_uri("sqlite:///mlflow.db")
-    mlflow.set_experiment("Loan Prediction Approval Experiments")
+    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+    mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
 
     df_train = data_loading(set="train")
-    X_train, X_test, y_train, y_test, encoder = preprocess_data(df_train)
+    X_train, X_test, y_train, y_test, preprocessor = preprocess_data(df_train)
 
     trials = Trials()
 
-    with mlflow.start_run():
+    with mlflow.start_run() as run:
         best = fmin(
             fn=lambda params: objective(params, X_train, y_train),
             space=search_space,
@@ -46,11 +52,19 @@ if __name__ == "__main__":
         # Evaluate
         acc, f1, recall, precision = evaluate_model(best_model, X_test, y_test)
 
-        # Store the best model
-        mlflow.sklearn.log_model(best_model, artifact_path="model")
-
-        # Store the encoder as an artifact
+        # Store the full preprocessor as an artifact (scaler + encoder + ordinal encoder)
         os.makedirs("artifacts", exist_ok=True)
-        encoder_path = "artifacts/encoder.joblib"
-        joblib.dump(encoder, encoder_path)
-        mlflow.log_artifact(encoder_path, artifact_path="model")
+        preprocessor_path = "artifacts/preprocessor.joblib"
+        joblib.dump(preprocessor, preprocessor_path)
+
+        # Log model + preprocessor in the same artifact folder
+        mlflow.sklearn.log_model(best_model, artifact_path="model")
+        mlflow.log_artifact(preprocessor_path, artifact_path="model")
+
+        run_id = run.info.run_id
+
+    # Register model in MLflow Model Registry
+    version = register_model(run_id=run_id, model_name=MLFLOW_MODEL_NAME)
+
+    # Promote to @champion if F1 is good enough
+    promote_to_champion(version=version, f1=f1, model_name=MLFLOW_MODEL_NAME)

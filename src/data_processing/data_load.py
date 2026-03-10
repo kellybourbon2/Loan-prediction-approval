@@ -33,3 +33,9 @@ class DataLoader:
         return self.load(
             "test"
         )  # loading of test set (useless bc test has no target, rather we split training)
+
+
+def data_loading(set: str = "train") -> pd.DataFrame:
+    """Wrapper function to load a dataset from S3"""
+    loader = DataLoader()
+    return loader.load(set)

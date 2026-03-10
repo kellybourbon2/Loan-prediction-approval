@@ -10,3 +10,7 @@ seaborn
 matplotlib
 
 ipykernel
+
+fastapi
+uvicorn[standard]
+python-dotenv

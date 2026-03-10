@@ -31,6 +31,7 @@ class DataPreprocessor:
         self.scaler = StandardScaler()
         self.encoder = None
         self.ordinal_encoder = None
+        self.numerical_cols = None
 
     def clean_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """Drop duplicates, missing values and useless columns"""
@@ -72,17 +73,28 @@ class DataPreprocessor:
 
     def normalize_data(self, X_train: pd.DataFrame, X_test: pd.DataFrame):
         """Normalize only continuous numerical features"""
-        numerical_cols = X_train.select_dtypes(include=["int64", "float64"]).columns
-        numerical_cols = [
+        self.numerical_cols = [
             col
             for col in X_train.select_dtypes(include=["int64", "float64"]).columns
             if col != CREDIT_DEFAULT_BINARY_COLUMN
         ]  # exclude binary column created
 
-        X_train[numerical_cols] = self.scaler.fit_transform(X_train[numerical_cols])
-        X_test[numerical_cols] = self.scaler.transform(X_test[numerical_cols])
+        X_train[self.numerical_cols] = self.scaler.fit_transform(X_train[self.numerical_cols])
+        X_test[self.numerical_cols] = self.scaler.transform(X_test[self.numerical_cols])
 
         return X_train, X_test
+
+    def inference_transform(self, df: pd.DataFrame):
+        """Apply feature engineering + normalization + encoding for a single inference sample.
+
+        Skips clean_data (no columns to drop at inference time).
+        Requires the preprocessor to be already fitted (after preprocessing_pipeline).
+        """
+        df = df.copy()
+        df = self.feature_engineering(df)
+        df[self.numerical_cols] = self.scaler.transform(df[self.numerical_cols])
+        df[AGE_CATEGORY_COLUMN] = self.ordinal_encoder.transform(df[[AGE_CATEGORY_COLUMN]])
+        return self.encoder.transform(df)
 
     def feature_encoding(self, X_train: pd.DataFrame, X_test: pd.DataFrame):
         """Transform categorical columns so they can be processed by the model"""
@@ -127,7 +139,16 @@ class DataPreprocessor:
         X_train, X_test, y_train, y_test = self.split_data(df)
         X_train, X_test = self.normalize_data(X_train, X_test)
         X_train, X_test = self.feature_encoding(X_train, X_test)
-        return X_train, X_test, y_train, y_test
+        return X_train, X_test, y_train, y_test, self
+
+
+def preprocess_data(df: pd.DataFrame):
+    """Wrapper function to apply the full preprocessing pipeline.
+
+    Returns X_train, X_test, y_train, y_test, fitted_preprocessor.
+    """
+    preprocessor = DataPreprocessor()
+    return preprocessor.preprocessing_pipeline(df)
 
     # def preprocess_test_data(df: pd.DataFrame, encoder: ColumnTransformer) -> pd.DataFrame:
 

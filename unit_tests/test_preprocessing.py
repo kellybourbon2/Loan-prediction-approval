@@ -9,7 +9,6 @@ import pandas as pd
 ROOT_DIR = Path(__file__).parent.parent  # noqa: E402
 sys.path.insert(0, str(ROOT_DIR))
 
-from src.data_processing.data_load import DataLoader  # noqa: E402
 from src.data_processing.preprocessing import DataPreprocessor  # noqa: E402
 
 from config import (  # noqa: E402
@@ -20,34 +19,38 @@ from config import (  # noqa: E402
     CREDIT_DEFAULT_COLUMN,
     AGE_COLUMN,
     AGE_CATEGORY_COLUMN,
-)  # noqa: E402
+)
 
 
-# function to generate a fake df similar than original one
-def generate_like(df_real: pd.DataFrame, n: int = 200) -> pd.DataFrame:
-    """Generate a fake df with same columns, dtypes and value range as the original"""
-    fake_data = {}
-    for col in df_real.columns:
-        if df_real[col].dtype == "object":
-            fake_data[col] = np.random.choice(df_real[col].dropna().unique(), n)
-        elif df_real[col].dtype in ["int64", "int32"]:
-            fake_data[col] = np.random.randint(
-                df_real[col].min(), df_real[col].max() + 1, n
-            )
-        elif df_real[col].dtype in ["float64", "float32"]:
-            fake_data[col] = np.random.uniform(
-                df_real[col].min(), df_real[col].max(), n
-            )
-    return pd.DataFrame(fake_data)
+def generate_fake_df(n: int = 200, seed: int = 42) -> pd.DataFrame:
+    """Generate a fake dataset matching the real dataset schema — no S3 required."""
+    rng = np.random.default_rng(seed)
+    return pd.DataFrame(
+        {
+            "id": np.arange(n),
+            AGE_COLUMN: rng.integers(18, 75, n),
+            "person_income": rng.uniform(20000, 150000, n),
+            "person_home_ownership": rng.choice(["RENT", "OWN", "MORTGAGE", "OTHER"], n),
+            "person_emp_length": rng.uniform(0, 20, n),
+            "loan_intent": rng.choice(
+                ["EDUCATION", "MEDICAL", "PERSONAL", "VENTURE", "DEBTCONSOLIDATION", "HOMEIMPROVEMENT"], n
+            ),
+            "loan_grade": rng.choice(["A", "B", "C", "D", "E", "F", "G"], n),
+            "loan_amnt": rng.uniform(500, 35000, n),
+            "loan_int_rate": rng.uniform(5.0, 25.0, n),
+            TARGET_COLUMN: rng.integers(0, 2, n),
+            "loan_percent_income": rng.uniform(0.01, 0.5, n),
+            CREDIT_DEFAULT_COLUMN: rng.choice(["Y", "N"], n),
+            "cb_person_cred_hist_length": rng.integers(1, 30, n),
+        }
+    )
 
 
 class TestDataPreprocessor(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        """Load real df once and generate similar fake df for all tests"""
-        data_load = DataLoader()
-        df_real = data_load.load_train()
-        cls.df = generate_like(df_real, n=200)
+        """Generate fake df once for all tests — no S3 connection required."""
+        cls.df = generate_fake_df(n=200)
 
     def setUp(self):
         """Initialize new DataPreprocessor before each test"""
