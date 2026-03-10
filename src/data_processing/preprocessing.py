@@ -79,7 +79,9 @@ class DataPreprocessor:
             if col != CREDIT_DEFAULT_BINARY_COLUMN
         ]  # exclude binary column created
 
-        X_train[self.numerical_cols] = self.scaler.fit_transform(X_train[self.numerical_cols])
+        X_train[self.numerical_cols] = self.scaler.fit_transform(
+            X_train[self.numerical_cols]
+        )
         X_test[self.numerical_cols] = self.scaler.transform(X_test[self.numerical_cols])
 
         return X_train, X_test
@@ -93,7 +95,9 @@ class DataPreprocessor:
         df = df.copy()
         df = self.feature_engineering(df)
         df[self.numerical_cols] = self.scaler.transform(df[self.numerical_cols])
-        df[AGE_CATEGORY_COLUMN] = self.ordinal_encoder.transform(df[[AGE_CATEGORY_COLUMN]])
+        df[AGE_CATEGORY_COLUMN] = self.ordinal_encoder.transform(
+            df[[AGE_CATEGORY_COLUMN]]
+        )
         return self.encoder.transform(df)
 
     def feature_encoding(self, X_train: pd.DataFrame, X_test: pd.DataFrame):
@@ -149,20 +153,6 @@ def preprocess_data(df: pd.DataFrame):
     """
     preprocessor = DataPreprocessor()
     return preprocessor.preprocessing_pipeline(df)
-
-    # def preprocess_test_data(df: pd.DataFrame, encoder: ColumnTransformer) -> pd.DataFrame:
-
-    #     # drop the columns that are not useful for the model
-    #     df = df.drop(columns=COLUMNS_TO_DROP)
-
-    #     # Separate target
-    #     y_test = df[TARGET_COLUMN]
-    #     X_test = df.drop(columns=[TARGET_COLUMN])
-
-    #     # One-hot encode categorical features using the same encoder fitted on the training data
-    #     X_test = encoder.transform(X_test)
-
-    #     return X_test, y_test
 
 
 if __name__ == "__main__":

@@ -64,7 +64,9 @@ def predict(request: LoanApplication):
     PROBABILITY_HISTOGRAM.observe(probability)
 
     # Structured log for drift analysis
-    log_prediction(inputs=request.model_dump(), prediction=prediction, probability=probability)
+    log_prediction(
+        inputs=request.model_dump(), prediction=prediction, probability=probability
+    )
 
     return PredictionResponse(
         loan_status=prediction,

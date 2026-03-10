@@ -50,4 +50,6 @@ if __name__ == "__main__":
     }
 
     result = predict(sample)
-    print(f"Prediction: {result['loan_status']} (probability: {result['probability']:.4f})")
+    print(
+        f"Prediction: {result['loan_status']} (probability: {result['probability']:.4f})"
+    )

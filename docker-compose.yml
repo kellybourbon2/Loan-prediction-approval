@@ -8,6 +8,7 @@ services:
       - ./artifacts:/app/artifacts
     environment:
       - MLFLOW_TRACKING_URI=sqlite:///mlflow.db
+      # SSPCloud credentials (forwarded from .env)
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}

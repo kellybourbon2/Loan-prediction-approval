@@ -9,7 +9,12 @@ class LoanApplication(BaseModel):
     person_home_ownership: Literal["RENT", "OWN", "MORTGAGE", "OTHER"]
     person_emp_length: float = Field(ge=0)
     loan_intent: Literal[
-        "EDUCATION", "MEDICAL", "PERSONAL", "VENTURE", "DEBTCONSOLIDATION", "HOMEIMPROVEMENT"
+        "EDUCATION",
+        "MEDICAL",
+        "PERSONAL",
+        "VENTURE",
+        "DEBTCONSOLIDATION",
+        "HOMEIMPROVEMENT",
     ]
     loan_amnt: float = Field(gt=0)
     loan_percent_income: float = Field(ge=0, le=1)

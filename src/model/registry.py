@@ -44,12 +44,10 @@ def promote_to_champion(
         # Remove champion alias from previous version if it exists
         try:
             old_champion = client.get_model_version_by_alias(model_name, "champion")
-            client.delete_registered_model_alias(
-                name=model_name, alias="champion"
-            )
+            client.delete_registered_model_alias(name=model_name, alias="champion")
             print(f"Removed @champion from previous version v{old_champion.version}")
-        except Exception:
-            pass  # no previous champion
+        except mlflow.exceptions.MlflowException:
+            pass  # no previous champion alias exists yet
 
         client.set_registered_model_alias(
             name=model_name,

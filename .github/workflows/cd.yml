@@ -7,9 +7,14 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write       # needed to commit the updated image tag
+      packages: write       # needed to push to ghcr.io
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -26,3 +31,17 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ github.sha }}
+
+      # GitOps: update the image tag in deployment.yaml so ArgoCD picks it up
+      - name: Update image tag in k8s/deployment.yaml
+        run: |
+          IMAGE="ghcr.io/${{ github.repository }}:${{ github.sha }}"
+          sed -i "s|ghcr.io/${{ github.repository }}:.*|${IMAGE}  # {\"\\$imagepolicy\": \"loan-prediction:loan-api\"}|" k8s/deployment.yaml
+
+      - name: Commit and push updated manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add k8s/deployment.yaml
+          git diff --staged --quiet || git commit -m "ci: update loan-api image to ${{ github.sha }}"
+          git push

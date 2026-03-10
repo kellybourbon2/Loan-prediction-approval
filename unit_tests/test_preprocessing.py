@@ -30,10 +30,20 @@ def generate_fake_df(n: int = 200, seed: int = 42) -> pd.DataFrame:
             "id": np.arange(n),
             AGE_COLUMN: rng.integers(18, 75, n),
             "person_income": rng.uniform(20000, 150000, n),
-            "person_home_ownership": rng.choice(["RENT", "OWN", "MORTGAGE", "OTHER"], n),
+            "person_home_ownership": rng.choice(
+                ["RENT", "OWN", "MORTGAGE", "OTHER"], n
+            ),
             "person_emp_length": rng.uniform(0, 20, n),
             "loan_intent": rng.choice(
-                ["EDUCATION", "MEDICAL", "PERSONAL", "VENTURE", "DEBTCONSOLIDATION", "HOMEIMPROVEMENT"], n
+                [
+                    "EDUCATION",
+                    "MEDICAL",
+                    "PERSONAL",
+                    "VENTURE",
+                    "DEBTCONSOLIDATION",
+                    "HOMEIMPROVEMENT",
+                ],
+                n,
             ),
             "loan_grade": rng.choice(["A", "B", "C", "D", "E", "F", "G"], n),
             "loan_amnt": rng.uniform(500, 35000, n),

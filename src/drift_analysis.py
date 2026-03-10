@@ -34,8 +34,8 @@ CATEGORICAL_FEATURES = [
     "loan_intent",
     "cb_person_default_on_file",
 ]
-DRIFT_ALPHA = 0.05      # p-value threshold for KS test
-PSI_THRESHOLD = 0.2     # PSI > 0.2 = significant drift
+DRIFT_ALPHA = 0.05  # p-value threshold for KS test
+PSI_THRESHOLD = 0.2  # PSI > 0.2 = significant drift
 
 
 def load_logs(log_file: Path) -> pd.DataFrame:
@@ -98,9 +98,7 @@ def analyse_categorical_drift(reference: pd.DataFrame, current: pd.DataFrame) ->
         cur_dist = current[col].value_counts(normalize=True).to_dict()
 
         all_cats = set(ref_dist) | set(cur_dist)
-        max_shift = max(
-            abs(cur_dist.get(c, 0) - ref_dist.get(c, 0)) for c in all_cats
-        )
+        max_shift = max(abs(cur_dist.get(c, 0) - ref_dist.get(c, 0)) for c in all_cats)
         results[col] = {
             "reference_distribution": {k: round(v, 4) for k, v in ref_dist.items()},
             "current_distribution": {k: round(v, 4) for k, v in cur_dist.items()},
@@ -111,7 +109,9 @@ def analyse_categorical_drift(reference: pd.DataFrame, current: pd.DataFrame) ->
 
 
 def analyse_prediction_drift(reference: pd.DataFrame, current: pd.DataFrame) -> dict:
-    ref_approval = reference["approved"].mean() if "approved" in reference.columns else None
+    ref_approval = (
+        reference["approved"].mean() if "approved" in reference.columns else None
+    )
     cur_approval = current["approved"].mean() if "approved" in current.columns else None
     if ref_approval is None or cur_approval is None:
         return {}
@@ -131,14 +131,18 @@ def print_report(numerical: dict, categorical: dict, prediction: dict) -> None:
     print("\n── Prediction Drift ──")
     if prediction:
         flag = "🔴 DRIFT" if prediction["drift_detected"] else "✅ OK"
-        print(f"  Approval rate: {prediction['ref_approval_rate']:.1%} → {prediction['cur_approval_rate']:.1%}  {flag}")
+        print(
+            f"  Approval rate: {prediction['ref_approval_rate']:.1%} → {prediction['cur_approval_rate']:.1%}  {flag}"
+        )
     else:
         print("  No data.")
 
     print("\n── Numerical Feature Drift (KS test + PSI) ──")
     for col, r in numerical.items():
         flag = "🔴 DRIFT" if r["drift_detected"] else "✅ OK"
-        print(f"  {col:<30} PSI={r['psi']:.3f}  p={r['p_value']:.3f}  mean {r['ref_mean']:.2f}→{r['cur_mean']:.2f}  {flag}")
+        print(
+            f"  {col:<30} PSI={r['psi']:.3f}  p={r['p_value']:.3f}  mean {r['ref_mean']:.2f}→{r['cur_mean']:.2f}  {flag}"
+        )
 
     print("\n── Categorical Feature Drift ──")
     for col, r in categorical.items():
@@ -150,14 +154,18 @@ def print_report(numerical: dict, categorical: dict, prediction: dict) -> None:
         + sum(r["drift_detected"] for r in categorical.values())
         + (1 if prediction.get("drift_detected") else 0)
     )
-    print(f"\n{'🔴 DRIFT DETECTED on ' + str(drifted) + ' feature(s)!' if drifted else '✅ No significant drift detected.'}")
+    print(
+        f"\n{'🔴 DRIFT DETECTED on ' + str(drifted) + ' feature(s)!' if drifted else '✅ No significant drift detected.'}"
+    )
     print("=" * 60)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Drift analysis on prediction logs")
     parser.add_argument("--log-file", type=Path, default=Path("logs/predictions.jsonl"))
-    parser.add_argument("--window", type=int, default=500, help="Size of each comparison window")
+    parser.add_argument(
+        "--window", type=int, default=500, help="Size of each comparison window"
+    )
     args = parser.parse_args()
 
     if not args.log_file.exists():
@@ -168,7 +176,9 @@ def main() -> None:
     print(f"Loaded {len(df)} predictions from {args.log_file}")
 
     if len(df) < args.window * 2:
-        print(f"Not enough data for drift analysis (need {args.window * 2} predictions, got {len(df)})")
+        print(
+            f"Not enough data for drift analysis (need {args.window * 2} predictions, got {len(df)})"
+        )
         sys.exit(0)
 
     reference = df.iloc[: args.window]
