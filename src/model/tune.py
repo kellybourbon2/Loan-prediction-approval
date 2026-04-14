@@ -23,6 +23,7 @@ def build_model(params: dict):
             n_estimators=int(params["n_estimators"]),
             max_depth=int(params["max_depth"]),
             random_state=RANDOM_STATE,
+            class_weight="balanced",
         )
 
     if model_name == "xgboost":

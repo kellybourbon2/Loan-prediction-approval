@@ -53,8 +53,9 @@ def predict(request: LoanApplication):
     try:
         df = pd.DataFrame([request.model_dump()])
         X = app.state.preprocessor.inference_transform(df)
-        prediction = int(app.state.model.predict(X)[0])
-        probability = float(app.state.model.predict_proba(X)[0][1])
+        proba_default = float(app.state.model.predict_proba(X)[0][1])
+        probability = round(1.0 - proba_default, 4)  # probability of approval (no default)
+        prediction = int(probability >= 0.5)
     except Exception as e:
         PREDICTION_ERRORS.inc()
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -71,5 +72,5 @@ def predict(request: LoanApplication):
     return PredictionResponse(
         loan_status=prediction,
         approved=bool(prediction),
-        probability=round(probability, 4),
+        probability=probability,
     )
