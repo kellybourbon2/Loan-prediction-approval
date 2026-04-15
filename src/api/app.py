@@ -54,7 +54,9 @@ def predict(request: LoanApplication):
         df = pd.DataFrame([request.model_dump()])
         X = app.state.preprocessor.inference_transform(df)
         proba_default = float(app.state.model.predict_proba(X)[0][1])
-        probability = round(1.0 - proba_default, 4)  # probability of approval (no default)
+        probability = round(
+            1.0 - proba_default, 4
+        )  # probability of approval (no default)
         prediction = int(probability >= 0.5)
     except Exception as e:
         PREDICTION_ERRORS.inc()
