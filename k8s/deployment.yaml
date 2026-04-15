@@ -2,11 +2,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: loan-api
-  namespace: loan-prediction
+  namespace: user-oualy
   labels:
     app: loan-api
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: loan-api
@@ -17,34 +17,66 @@ spec:
     spec:
       containers:
         - name: loan-api
-          # Tag is updated automatically by the CD GitHub Actions workflow (GitOps)
-          image: ghcr.io/kellybourbon2/loan-prediction-approval:main  # {"$imagepolicy": "loan-prediction:loan-api"}
-          imagePullPolicy: Always
+          # Builds env at runtime: git clone + uv sync (no Docker needed on SSPCloud)
+          # mlflow.db mounted from Secret — no MLflow server needed for inference
+          image: python:3.13-slim
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -e
+              apt-get update -qq && apt-get install -y -qq git curl ca-certificates
+              curl -LsSf https://astral.sh/uv/install.sh | sh
+              export PATH="$HOME/.local/bin:$PATH"
+              git clone --depth=1 --branch ossama \
+                https://github.com/kellybourbon2/Loan-prediction-approval.git /app
+              cd /app
+              uv sync --frozen --no-dev --no-install-project
+              cp /mlflow-secret/mlflow.db /tmp/mlflow.db
+              exec uv run uvicorn src.api.app:app --host 0.0.0.0 --port 8000
           ports:
             - containerPort: 8000
+
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: "sqlite:////tmp/mlflow.db"
+            - name: MLFLOW_S3_ENDPOINT_URL
+              value: "https://minio.lab.sspcloud.fr"
 
           envFrom:
             - secretRef:
                 name: loan-api-secret
 
+          volumeMounts:
+            - name: mlflow-db
+              mountPath: /mlflow-secret
+              readOnly: true
+
           resources:
             requests:
-              cpu: "250m"
-              memory: "512Mi"
-            limits:
-              cpu: "1000m"
+              cpu: "500m"
               memory: "1Gi"
+            limits:
+              cpu: "1500m"
+              memory: "2Gi"
 
           livenessProbe:
             httpGet:
               path: /health
               port: 8000
-            initialDelaySeconds: 30
-            periodSeconds: 15
+            initialDelaySeconds: 180
+            periodSeconds: 20
+            failureThreshold: 5
 
           readinessProbe:
             httpGet:
               path: /health
               port: 8000
-            initialDelaySeconds: 15
-            periodSeconds: 10
+            initialDelaySeconds: 120
+            periodSeconds: 15
+            failureThreshold: 10
+
+      volumes:
+        - name: mlflow-db
+          secret:
+            secretName: mlflow-db

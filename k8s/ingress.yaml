@@ -1,0 +1,46 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: loan-api
+  namespace: user-oualy
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+spec:
+  ingressClassName: onyxia
+  rules:
+    - host: loan-api-oualy.user.lab.sspcloud.fr
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: loan-api
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - loan-api-oualy.user.lab.sspcloud.fr
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana
+  namespace: user-oualy
+spec:
+  ingressClassName: onyxia
+  rules:
+    - host: grafana-loan-oualy.user.lab.sspcloud.fr
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 3000
+  tls:
+    - hosts:
+        - grafana-loan-oualy.user.lab.sspcloud.fr
