@@ -2,13 +2,13 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: loan-prediction-api
-  namespace: argocd
+  namespace: user-oualy
 spec:
   project: default
 
   source:
     repoURL: https://github.com/kellybourbon2/Loan-prediction-approval
-    targetRevision: main
+    targetRevision: ossama
     path: k8s
     # Exclude the ArgoCD app manifest itself and secret template
     directory:
@@ -16,12 +16,11 @@ spec:
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: loan-prediction
+    namespace: user-oualy
 
   syncPolicy:
     automated:
       prune: true      # remove resources deleted from git
       selfHeal: true   # revert manual changes on the cluster
     syncOptions:
-      - CreateNamespace=true
       - ServerSideApply=true
