@@ -60,79 +60,91 @@ spec:
             args:
             - |
               set -e
-              pip install --quiet kubernetes requests pyyaml
+              # Install deps
+              apt-get update -qq && apt-get install -y -qq git curl ca-certificates
+
+              # Download kubectl
+              curl -sLo /usr/local/bin/kubectl \
+                https://dl.k8s.io/release/v1.29.0/bin/linux/amd64/kubectl
+              chmod +x /usr/local/bin/kubectl
+
+              pip install --quiet requests
 
               python3 - <<'PYEOF'
-              import json, os, sys
+              import os, sys, subprocess
               import requests
-              import yaml
-              from kubernetes import client, config
-              from kubernetes.client.rest import ApiException
-              from kubernetes.dynamic import DynamicClient
+              from datetime import datetime, timezone
 
               REPO      = "kellybourbon2/Loan-prediction-approval"
               BRANCH    = "ossama"
-              K8S_PATH  = "k8s"
               NAMESPACE = "user-oualy"
               EXCLUDE   = {"secret.yaml", "argocd-app.yaml", "namespace.yaml", "gitops-sync.yaml"}
               STATE_CM  = "gitops-state"
+              TOKEN     = open("/var/run/secrets/kubernetes.io/serviceaccount/token").read()
+              APISERVER = "https://kubernetes.default.svc"
+              CACERT    = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+
+              def kube_get(path):
+                  r = requests.get(f"{APISERVER}{path}", headers={"Authorization": f"Bearer {TOKEN}"},
+                                   verify=CACERT, timeout=10)
+                  return r
+
+              def kube_put(path, body):
+                  r = requests.put(f"{APISERVER}{path}",
+                                   headers={"Authorization": f"Bearer {TOKEN}",
+                                            "Content-Type": "application/json"},
+                                   json=body, verify=CACERT, timeout=10)
+                  return r
+
+              def kube_post(path, body):
+                  r = requests.post(f"{APISERVER}{path}",
+                                    headers={"Authorization": f"Bearer {TOKEN}",
+                                             "Content-Type": "application/json"},
+                                    json=body, verify=CACERT, timeout=10)
+                  return r
 
               def get_remote_sha():
-                  r = requests.get(f"https://api.github.com/repos/{REPO}/commits/{BRANCH}", timeout=15)
+                  r = requests.get(
+                      f"https://api.github.com/repos/{REPO}/commits/{BRANCH}", timeout=15)
                   r.raise_for_status()
                   return r.json()["sha"]
 
-              def get_deployed_sha(v1):
-                  try:
-                      cm = v1.read_namespaced_config_map(STATE_CM, NAMESPACE)
-                      return cm.data.get("sha", "")
-                  except ApiException as e:
-                      return "" if e.status == 404 else (_ for _ in ()).throw(e)
+              def get_deployed_sha():
+                  r = kube_get(f"/api/v1/namespaces/{NAMESPACE}/configmaps/{STATE_CM}")
+                  if r.status_code == 404:
+                      return ""
+                  r.raise_for_status()
+                  return r.json().get("data", {}).get("sha", "")
 
-              def update_state(v1, sha):
-                  from datetime import datetime
-                  cm = client.V1ConfigMap(
-                      metadata=client.V1ObjectMeta(name=STATE_CM, namespace=NAMESPACE),
-                      data={"sha": sha, "synced_at": datetime.utcnow().isoformat()}
+              def update_state(sha):
+                  now = datetime.now(timezone.utc).isoformat()
+                  body = {"apiVersion": "v1", "kind": "ConfigMap",
+                          "metadata": {"name": STATE_CM, "namespace": NAMESPACE},
+                          "data": {"sha": sha, "synced_at": now}}
+                  r = kube_get(f"/api/v1/namespaces/{NAMESPACE}/configmaps/{STATE_CM}")
+                  if r.status_code == 404:
+                      kube_post(f"/api/v1/namespaces/{NAMESPACE}/configmaps", body).raise_for_status()
+                  else:
+                      kube_put(f"/api/v1/namespaces/{NAMESPACE}/configmaps/{STATE_CM}", body).raise_for_status()
+
+              def kubectl_apply(filepath):
+                  result = subprocess.run(
+                      ["kubectl", "apply", "-f", filepath,
+                       "-n", NAMESPACE,
+                       "--server", APISERVER,
+                       "--token", TOKEN,
+                       "--certificate-authority", CACERT],
+                      capture_output=True, text=True
                   )
-                  try:
-                      v1.replace_namespaced_config_map(STATE_CM, NAMESPACE, cm)
-                  except ApiException as e:
-                      if e.status == 404:
-                          v1.create_namespaced_config_map(NAMESPACE, cm)
-                      else:
-                          raise
-
-              def apply_doc(dyn, doc):
-                  if not doc or "kind" not in doc:
-                      return
-                  kind        = doc["kind"]
-                  api_version = doc.get("apiVersion", "v1")
-                  name        = doc["metadata"]["name"]
-                  print(f"  → {kind}/{name}", flush=True)
-                  try:
-                      res = dyn.resources.get(api_version=api_version, kind=kind)
-                      kwargs = dict(
-                          body=doc,
-                          field_manager="gitops-sync",
-                          force_conflicts=True
-                      )
-                      if res.namespaced:
-                          kwargs["namespace"] = NAMESPACE
-                      # Server-side apply
-                      res.server_side_apply(name=name, **kwargs)
-                      print(f"    ✓ applied", flush=True)
-                  except Exception as e:
-                      print(f"    ✗ {e}", flush=True)
+                  if result.stdout:
+                      print(result.stdout.strip(), flush=True)
+                  if result.returncode != 0:
+                      print(f"  ✗ {result.stderr.strip()}", flush=True)
 
               def main():
                   print("=== GitOps Sync ===", flush=True)
-                  config.load_incluster_config()
-                  v1  = client.CoreV1Api()
-                  dyn = DynamicClient(client.ApiClient())
-
                   remote_sha   = get_remote_sha()
-                  deployed_sha = get_deployed_sha(v1)
+                  deployed_sha = get_deployed_sha()
                   print(f"Remote  : {remote_sha[:12]}", flush=True)
                   print(f"Deployed: {deployed_sha[:12] if deployed_sha else 'none'}", flush=True)
 
@@ -140,24 +152,26 @@ spec:
                       print("Up to date — nothing to do.", flush=True)
                       sys.exit(0)
 
-                  print("Changes detected, syncing...", flush=True)
-                  # List files in k8s/ on GitHub
-                  r = requests.get(
-                      f"https://api.github.com/repos/{REPO}/contents/{K8S_PATH}?ref={BRANCH}",
-                      timeout=15
+                  print("Changes detected, cloning repo...", flush=True)
+                  subprocess.run(
+                      ["git", "clone", "--depth=1", "--branch", BRANCH,
+                       f"https://github.com/{REPO}.git", "/tmp/repo"],
+                      check=True, capture_output=True
                   )
-                  r.raise_for_status()
-                  files = [(f["name"], f["download_url"]) for f in r.json()
-                           if f["name"].endswith(".yaml") and f["name"] not in EXCLUDE]
+
+                  import glob
+                  files = sorted([
+                      f for f in glob.glob("/tmp/repo/k8s/*.yaml")
+                      if os.path.basename(f) not in EXCLUDE
+                  ])
                   print(f"Applying {len(files)} manifest files...", flush=True)
 
-                  for fname, url in sorted(files):
+                  for fpath in files:
+                      fname = os.path.basename(fpath)
                       print(f"\n[{fname}]", flush=True)
-                      content = requests.get(url, timeout=15).text
-                      for doc in yaml.safe_load_all(content):
-                          apply_doc(dyn, doc)
+                      kubectl_apply(fpath)
 
-                  update_state(v1, remote_sha)
+                  update_state(remote_sha)
                   print(f"\n✓ Sync complete — deployed {remote_sha[:12]}", flush=True)
 
               main()
