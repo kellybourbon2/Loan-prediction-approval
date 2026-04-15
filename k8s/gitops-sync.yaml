@@ -1,0 +1,171 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gitops-deployer
+  namespace: user-oualy
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gitops-deployer
+  namespace: user-oualy
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "services", "persistentvolumeclaims", "secrets"]
+  verbs: ["get", "list", "create", "update", "patch", "delete", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets"]
+  verbs: ["get", "list", "create", "update", "patch", "delete", "watch"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get", "list", "create", "update", "patch", "delete", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gitops-deployer
+  namespace: user-oualy
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: gitops-deployer
+subjects:
+- kind: ServiceAccount
+  name: gitops-deployer
+  namespace: user-oualy
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: gitops-sync
+  namespace: user-oualy
+  labels:
+    app: gitops-sync
+spec:
+  schedule: "*/2 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: gitops-deployer
+          restartPolicy: OnFailure
+          containers:
+          - name: sync
+            image: python:3.13-slim
+            imagePullPolicy: IfNotPresent
+            command: ["/bin/sh", "-c"]
+            args:
+            - |
+              set -e
+              pip install --quiet kubernetes requests pyyaml
+
+              python3 - <<'PYEOF'
+              import json, os, sys
+              import requests
+              import yaml
+              from kubernetes import client, config
+              from kubernetes.client.rest import ApiException
+              from kubernetes.dynamic import DynamicClient
+
+              REPO      = "kellybourbon2/Loan-prediction-approval"
+              BRANCH    = "ossama"
+              K8S_PATH  = "k8s"
+              NAMESPACE = "user-oualy"
+              EXCLUDE   = {"secret.yaml", "argocd-app.yaml", "namespace.yaml", "gitops-sync.yaml"}
+              STATE_CM  = "gitops-state"
+
+              def get_remote_sha():
+                  r = requests.get(f"https://api.github.com/repos/{REPO}/commits/{BRANCH}", timeout=15)
+                  r.raise_for_status()
+                  return r.json()["sha"]
+
+              def get_deployed_sha(v1):
+                  try:
+                      cm = v1.read_namespaced_config_map(STATE_CM, NAMESPACE)
+                      return cm.data.get("sha", "")
+                  except ApiException as e:
+                      return "" if e.status == 404 else (_ for _ in ()).throw(e)
+
+              def update_state(v1, sha):
+                  from datetime import datetime
+                  cm = client.V1ConfigMap(
+                      metadata=client.V1ObjectMeta(name=STATE_CM, namespace=NAMESPACE),
+                      data={"sha": sha, "synced_at": datetime.utcnow().isoformat()}
+                  )
+                  try:
+                      v1.replace_namespaced_config_map(STATE_CM, NAMESPACE, cm)
+                  except ApiException as e:
+                      if e.status == 404:
+                          v1.create_namespaced_config_map(NAMESPACE, cm)
+                      else:
+                          raise
+
+              def apply_doc(dyn, doc):
+                  if not doc or "kind" not in doc:
+                      return
+                  kind        = doc["kind"]
+                  api_version = doc.get("apiVersion", "v1")
+                  name        = doc["metadata"]["name"]
+                  print(f"  → {kind}/{name}", flush=True)
+                  try:
+                      res = dyn.resources.get(api_version=api_version, kind=kind)
+                      kwargs = dict(
+                          body=doc,
+                          field_manager="gitops-sync",
+                          force_conflicts=True
+                      )
+                      if res.namespaced:
+                          kwargs["namespace"] = NAMESPACE
+                      # Server-side apply
+                      res.server_side_apply(name=name, **kwargs)
+                      print(f"    ✓ applied", flush=True)
+                  except Exception as e:
+                      print(f"    ✗ {e}", flush=True)
+
+              def main():
+                  print("=== GitOps Sync ===", flush=True)
+                  config.load_incluster_config()
+                  v1  = client.CoreV1Api()
+                  dyn = DynamicClient(client.ApiClient())
+
+                  remote_sha   = get_remote_sha()
+                  deployed_sha = get_deployed_sha(v1)
+                  print(f"Remote  : {remote_sha[:12]}", flush=True)
+                  print(f"Deployed: {deployed_sha[:12] if deployed_sha else 'none'}", flush=True)
+
+                  if remote_sha == deployed_sha:
+                      print("Up to date — nothing to do.", flush=True)
+                      sys.exit(0)
+
+                  print("Changes detected, syncing...", flush=True)
+                  # List files in k8s/ on GitHub
+                  r = requests.get(
+                      f"https://api.github.com/repos/{REPO}/contents/{K8S_PATH}?ref={BRANCH}",
+                      timeout=15
+                  )
+                  r.raise_for_status()
+                  files = [(f["name"], f["download_url"]) for f in r.json()
+                           if f["name"].endswith(".yaml") and f["name"] not in EXCLUDE]
+                  print(f"Applying {len(files)} manifest files...", flush=True)
+
+                  for fname, url in sorted(files):
+                      print(f"\n[{fname}]", flush=True)
+                      content = requests.get(url, timeout=15).text
+                      for doc in yaml.safe_load_all(content):
+                          apply_doc(dyn, doc)
+
+                  update_state(v1, remote_sha)
+                  print(f"\n✓ Sync complete — deployed {remote_sha[:12]}", flush=True)
+
+              main()
+              PYEOF
+            resources:
+              requests:
+                cpu: "100m"
+                memory: "256Mi"
+              limits:
+                cpu: "500m"
+                memory: "512Mi"
