@@ -5,6 +5,8 @@ from pathlib import Path
 import mlflow
 import pandas as pd
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from prometheus_fastapi_instrumentator import Instrumentator
 
 ROOT_DIR = Path(__file__).parent.parent.parent
@@ -39,6 +41,16 @@ app = FastAPI(
 
 # Expose /metrics endpoint with automatic HTTP instrumentation (latency, request count, status codes)
 Instrumentator().instrument(app).expose(app)
+
+# Serve the web UI from /ui
+STATIC_DIR = Path(__file__).parent / "static"
+app.mount("/ui", StaticFiles(directory=STATIC_DIR, html=True), name="ui")
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    """Redirect root to the web UI."""
+    return RedirectResponse(url="/ui")
 
 
 @app.get("/health")

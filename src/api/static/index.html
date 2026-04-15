@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LoanSense AI — Intelligent Loan Assessment</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Reset & Variables ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:       #0a1628;
+      --navy-2:     #0f2042;
+      --blue:       #1652f0;
+      --blue-light: #e8eeff;
+      --success:    #00875a;
+      --success-bg: #e3fcef;
+      --danger:     #de350b;
+      --danger-bg:  #ffebe6;
+      --warn:       #ff8b00;
+      --warn-bg:    #fff8e7;
+      --bg:         #f4f6fa;
+      --card:       #ffffff;
+      --border:     #dde1ea;
+      --text:       #0a1628;
+      --muted:      #6b7280;
+      --radius:     14px;
+      --shadow:     0 4px 24px rgba(10,22,40,.08);
+      --shadow-lg:  0 12px 48px rgba(10,22,40,.14);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ─── Header / Hero ─── */
+    header {
+      background: linear-gradient(135deg, var(--navy) 0%, #1a3560 60%, #1b4896 100%);
+      position: relative;
+      overflow: hidden;
+      padding-bottom: 3rem;
+    }
+
+    .hero-blobs { position: absolute; inset: 0; pointer-events: none; }
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(70px);
+      opacity: .18;
+    }
+    .blob-1 { width:420px;height:420px;background:#3b82f6;top:-120px;right:-80px; }
+    .blob-2 { width:280px;height:280px;background:#6366f1;bottom:-60px;left:5%; }
+    .blob-3 { width:200px;height:200px;background:#0ea5e9;top:40%;left:35%; }
+
+    /* dots pattern */
+    .hero-dots {
+      position: absolute; inset: 0;
+      background-image: radial-gradient(rgba(255,255,255,.08) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.25rem 2.5rem;
+      position: relative;
+      z-index: 2;
+    }
+
+    .nav-logo {
+      display: flex; align-items: center; gap: .6rem;
+      color: #fff; font-weight: 700; font-size: 1.15rem; text-decoration: none;
+    }
+    .nav-logo svg { flex-shrink: 0; }
+
+    .nav-links { display: flex; gap: 1rem; }
+    .nav-link {
+      color: rgba(255,255,255,.75);
+      text-decoration: none; font-size: .85rem; font-weight: 500;
+      padding: .4rem .8rem; border-radius: 6px;
+      transition: background .2s, color .2s;
+    }
+    .nav-link:hover { background: rgba(255,255,255,.12); color: #fff; }
+    .nav-badge {
+      background: rgba(255,255,255,.15);
+      color: rgba(255,255,255,.9);
+      font-size: .72rem; font-weight: 600;
+      padding: .3rem .7rem; border-radius: 20px;
+      border: 1px solid rgba(255,255,255,.2);
+    }
+
+    .hero-body {
+      position: relative; z-index: 2;
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 2rem; align-items: center;
+      max-width: 1160px; margin: 0 auto;
+      padding: 2.5rem 2.5rem 0;
+    }
+
+    .hero-text h1 {
+      font-size: 2.8rem; font-weight: 800; line-height: 1.15;
+      color: #fff; letter-spacing: -.02em;
+    }
+    .hero-text h1 span { color: #60a5fa; }
+
+    .hero-text p {
+      margin-top: .9rem;
+      color: rgba(255,255,255,.7);
+      font-size: 1.05rem; line-height: 1.6;
+      max-width: 420px;
+    }
+
+    .hero-stats {
+      display: flex; gap: .7rem; margin-top: 1.8rem; flex-wrap: wrap;
+    }
+    .stat-chip {
+      background: rgba(255,255,255,.1);
+      border: 1px solid rgba(255,255,255,.18);
+      color: #fff; font-size: .78rem; font-weight: 600;
+      padding: .4rem .9rem; border-radius: 20px;
+      display: flex; align-items: center; gap: .4rem;
+      backdrop-filter: blur(6px);
+    }
+    .stat-chip .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #4ade80; box-shadow: 0 0 0 3px rgba(74,222,128,.25);
+    }
+
+    /* Hero illustration */
+    .hero-visual {
+      display: flex; justify-content: center; align-items: flex-end;
+    }
+    .hero-card-preview {
+      background: rgba(255,255,255,.08);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 20px;
+      padding: 1.6rem;
+      width: 100%; max-width: 340px;
+      color: #fff;
+    }
+    .preview-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.2rem; }
+    .preview-header span { font-size: .8rem; font-weight: 600; opacity: .7; text-transform: uppercase; letter-spacing: .05em; }
+    .preview-badge-live { background: #4ade80; color: #0a1628; font-size: .7rem; font-weight: 700; padding: .2rem .6rem; border-radius: 8px; }
+    .preview-score { font-size: 3rem; font-weight: 800; }
+    .preview-score span { font-size: 1.2rem; font-weight: 500; opacity: .6; }
+    .preview-label { font-size: .85rem; opacity: .6; margin-bottom: 1.2rem; }
+    .preview-bar-wrap { background: rgba(255,255,255,.1); border-radius: 8px; height: 8px; overflow: hidden; margin-bottom: .4rem; }
+    .preview-bar { height: 100%; border-radius: 8px; background: linear-gradient(90deg, #4ade80, #22c55e); width: 90%; }
+    .preview-footer { display: flex; justify-content: space-between; font-size: .75rem; opacity: .5; margin-top: .3rem; }
+    .preview-approved {
+      background: rgba(74,222,128,.15); border: 1px solid rgba(74,222,128,.3);
+      border-radius: 10px; padding: .7rem 1rem; margin-top: 1rem;
+      display: flex; align-items: center; gap: .5rem;
+      font-weight: 600; font-size: .9rem; color: #4ade80;
+    }
+
+    /* ─── Main Layout ─── */
+    .main-wrap {
+      max-width: 1160px; margin: 0 auto;
+      padding: 0 2.5rem 4rem;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      gap: 2rem;
+      align-items: start;
+      margin-top: -1.5rem;
+    }
+
+    /* ─── Form Panel ─── */
+    .form-panel {
+      background: var(--card); border-radius: var(--radius);
+      box-shadow: var(--shadow); overflow: hidden;
+    }
+
+    .form-header {
+      padding: 1.5rem 1.8rem;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: .75rem;
+    }
+    .form-header-icon {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: var(--blue-light); display: flex; align-items: center; justify-content: center;
+    }
+    .form-header h2 { font-size: 1.05rem; font-weight: 700; }
+    .form-header p { font-size: .8rem; color: var(--muted); margin-top: .1rem; }
+
+    form { padding: 1.5rem 1.8rem; }
+
+    /* Section */
+    .form-section { margin-bottom: 1.6rem; }
+    .section-label {
+      display: flex; align-items: center; gap: .5rem;
+      font-size: .72rem; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--muted);
+      margin-bottom: .9rem; padding-bottom: .5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-label svg { opacity: .6; }
+
+    .fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .85rem; }
+    .fields-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .field-full { grid-column: 1 / -1; }
+
+    /* Field */
+    .field { display: flex; flex-direction: column; gap: .35rem; }
+    label { font-size: .8rem; font-weight: 600; color: #374151; }
+    label .req { color: var(--blue); margin-left: 2px; }
+
+    input, select {
+      width: 100%;
+      padding: .6rem .85rem;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-size: .9rem;
+      font-family: 'Inter', sans-serif;
+      color: var(--text);
+      background: #fff;
+      transition: border-color .2s, box-shadow .2s;
+      appearance: none;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(22,82,240,.1);
+    }
+    input:hover, select:hover { border-color: #9ca3af; }
+
+    /* Select arrow */
+    .select-wrap { position: relative; }
+    .select-wrap::after {
+      content: '';
+      position: absolute; right: .75rem; top: 50%; transform: translateY(-50%);
+      width: 0; height: 0;
+      border-left: 4px solid transparent; border-right: 4px solid transparent;
+      border-top: 5px solid var(--muted);
+      pointer-events: none;
+    }
+    .select-wrap select { padding-right: 2rem; }
+
+    /* Auto-calculated field */
+    .calc-field {
+      background: #f8faff; border: 1.5px dashed #c7d7fe;
+      border-radius: 8px; padding: .6rem .85rem;
+      font-size: .9rem; color: var(--blue); font-weight: 600;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .calc-label { font-size: .72rem; color: var(--muted); font-weight: 500; }
+
+    /* Submit */
+    .submit-wrap { margin-top: 1.4rem; }
+    .btn-submit {
+      width: 100%; padding: .9rem;
+      background: linear-gradient(135deg, var(--blue), #0f44d3);
+      color: #fff; border: none; border-radius: 10px;
+      font-size: 1rem; font-weight: 700;
+      cursor: pointer; letter-spacing: .01em;
+      transition: transform .15s, box-shadow .15s, opacity .15s;
+      display: flex; align-items: center; justify-content: center; gap: .5rem;
+      box-shadow: 0 4px 20px rgba(22,82,240,.35);
+    }
+    .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(22,82,240,.45); }
+    .btn-submit:active { transform: translateY(0); }
+    .btn-submit:disabled { opacity: .65; cursor: not-allowed; transform: none; }
+
+    .btn-submit .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: none;
+    }
+    .btn-submit.loading .spinner { display: block; }
+    .btn-submit.loading .btn-text { display: none; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Result Panel ─── */
+    .result-panel {
+      position: sticky; top: 1.5rem;
+      background: var(--card); border-radius: var(--radius);
+      box-shadow: var(--shadow); overflow: hidden;
+    }
+
+    /* Empty state */
+    .result-empty {
+      padding: 2.5rem 1.8rem;
+      display: flex; flex-direction: column;
+      align-items: center; text-align: center;
+    }
+    .result-empty svg { opacity: .35; margin-bottom: 1.2rem; }
+    .result-empty h3 { font-size: 1rem; font-weight: 700; color: var(--text); }
+    .result-empty p { font-size: .85rem; color: var(--muted); margin-top: .4rem; line-height: 1.5; max-width: 260px; }
+
+    /* Result content */
+    .result-content { display: none; }
+    .result-content.visible { display: block; animation: fadeIn .4s ease; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+    .result-top {
+      padding: 1.8rem;
+      display: flex; flex-direction: column; align-items: center;
+      text-align: center;
+    }
+
+    /* Circular gauge */
+    .gauge-wrap {
+      position: relative; width: 160px; height: 160px;
+      margin-bottom: 1.2rem;
+    }
+    .gauge-wrap svg { transform: rotate(-90deg); }
+    .gauge-bg { fill: none; stroke: #eef0f5; stroke-width: 10; }
+    .gauge-fill {
+      fill: none; stroke-width: 10;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1), stroke .4s;
+    }
+    .gauge-center {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    .gauge-pct {
+      font-size: 2rem; font-weight: 800; line-height: 1;
+      transition: color .4s;
+    }
+    .gauge-sub { font-size: .7rem; color: var(--muted); font-weight: 500; margin-top: .1rem; }
+
+    /* Verdict badge */
+    .verdict {
+      display: inline-flex; align-items: center; gap: .5rem;
+      padding: .6rem 1.4rem; border-radius: 50px;
+      font-size: 1rem; font-weight: 700; letter-spacing: .02em;
+      margin-bottom: .6rem;
+    }
+    .verdict.approved { background: var(--success-bg); color: var(--success); }
+    .verdict.declined { background: var(--danger-bg); color: var(--danger); }
+    .verdict.review   { background: var(--warn-bg);   color: var(--warn); }
+
+    .verdict-sub { font-size: .82rem; color: var(--muted); }
+
+    /* Risk meter */
+    .risk-row {
+      display: flex; align-items: center; gap: .5rem;
+      margin-top: .8rem;
+    }
+    .risk-label { font-size: .75rem; color: var(--muted); font-weight: 500; }
+    .risk-bar-track {
+      flex: 1; height: 6px; background: #eef0f5;
+      border-radius: 3px; overflow: hidden;
+    }
+    .risk-bar-fill { height: 100%; border-radius: 3px; transition: width 1s ease, background .4s; }
+    .risk-value { font-size: .75rem; font-weight: 700; min-width: 28px; text-align: right; }
+
+    /* Details */
+    .result-details { padding: 0 1.8rem 1.8rem; }
+    .details-divider {
+      border: none; border-top: 1px solid var(--border);
+      margin-bottom: 1.2rem;
+    }
+    .details-title {
+      font-size: .72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .08em;
+      color: var(--muted); margin-bottom: .8rem;
+    }
+
+    .metric-list { display: flex; flex-direction: column; gap: .5rem; }
+    .metric-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .5rem .7rem;
+      background: #f8faff; border-radius: 8px;
+      font-size: .82rem;
+    }
+    .metric-row .metric-key { color: var(--muted); font-weight: 500; display: flex; align-items: center; gap: .4rem; }
+    .metric-row .metric-val { font-weight: 700; color: var(--text); }
+
+    .btn-reset {
+      width: 100%; margin-top: 1.2rem;
+      padding: .65rem;
+      background: transparent;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      color: var(--muted); font-size: .85rem; font-weight: 600;
+      cursor: pointer; font-family: 'Inter', sans-serif;
+      transition: background .2s, color .2s, border-color .2s;
+    }
+    .btn-reset:hover { background: var(--bg); color: var(--text); border-color: #9ca3af; }
+
+    /* ─── Footer ─── */
+    footer {
+      background: var(--navy);
+      padding: 2rem 2.5rem;
+    }
+    .footer-inner {
+      max-width: 1160px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 1rem;
+    }
+    .footer-brand { display: flex; align-items: center; gap: .5rem; color: rgba(255,255,255,.9); font-weight: 700; font-size: .9rem; }
+    .footer-meta { font-size: .78rem; color: rgba(255,255,255,.4); margin-top: .2rem; }
+
+    .footer-chips { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .footer-chip {
+      background: rgba(255,255,255,.07);
+      border: 1px solid rgba(255,255,255,.1);
+      color: rgba(255,255,255,.65);
+      font-size: .73rem; font-weight: 600;
+      padding: .3rem .75rem; border-radius: 20px;
+      display: flex; align-items: center; gap: .35rem;
+    }
+    .footer-chip .pip { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; }
+    .footer-links { display: flex; gap: 1.2rem; }
+    .footer-links a { color: rgba(255,255,255,.45); font-size: .78rem; text-decoration: none; transition: color .2s; }
+    .footer-links a:hover { color: rgba(255,255,255,.9); }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 900px) {
+      .hero-body { grid-template-columns: 1fr; }
+      .hero-visual { display: none; }
+      .content-grid { grid-template-columns: 1fr; }
+      .result-panel { position: static; }
+      .hero-text h1 { font-size: 2rem; }
+      nav { padding: 1rem 1.5rem; }
+      .main-wrap { padding: 0 1.5rem 3rem; }
+    }
+    @media (max-width: 600px) {
+      .fields-grid, .fields-grid.cols-3 { grid-template-columns: 1fr; }
+      .field-full { grid-column: auto; }
+      .hero-stats { gap: .4rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ HEADER ═══════════════════════════ -->
+<header>
+  <div class="hero-blobs">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
+  <div class="hero-dots"></div>
+
+  <nav>
+    <a href="/" class="nav-logo">
+      <!-- Shield + chart icon -->
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="8" fill="#1652f0"/>
+        <path d="M16 5L7 9v7c0 5.25 3.85 10.15 9 11.33C21.15 26.15 25 21.25 25 16V9L16 5z" fill="rgba(255,255,255,.2)" stroke="white" stroke-width="1.5"/>
+        <path d="M11 16l3.5 3.5L21 13" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      LoanSense<span style="color:#60a5fa;margin-left:2px">AI</span>
+    </a>
+    <div class="nav-links">
+      <a href="/docs" class="nav-link" target="_blank">API Docs</a>
+      <a href="/metrics" class="nav-link" target="_blank">Metrics</a>
+      <span class="nav-badge">@champion model</span>
+    </div>
+  </nav>
+
+  <div class="hero-body">
+    <div class="hero-text">
+      <h1>Intelligent<br/><span>Loan Assessment</span><br/>Platform</h1>
+      <p>Get instant AI-powered loan approval predictions. Powered by our production-grade machine learning model trained on real credit data.</p>
+      <div class="hero-stats">
+        <div class="stat-chip"><div class="dot"></div> Live API</div>
+        <div class="stat-chip">🎯 91.2% Accuracy</div>
+        <div class="stat-chip">⚡ &lt;50ms Response</div>
+        <div class="stat-chip">🤖 XGBoost Champion</div>
+      </div>
+    </div>
+
+    <div class="hero-visual">
+      <div class="hero-card-preview">
+        <div class="preview-header">
+          <span>Approval Score</span>
+          <div class="preview-badge-live">LIVE</div>
+        </div>
+        <div class="preview-score">90.3<span>%</span></div>
+        <div class="preview-label">Probability of approval</div>
+        <div class="preview-bar-wrap"><div class="preview-bar"></div></div>
+        <div class="preview-footer"><span>Risk: Low</span><span>Grade: B</span></div>
+        <div class="preview-approved">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M3 8l3.5 3.5L13 5" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          Loan Approved
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════════════════ MAIN ═══════════════════════════ -->
+<div class="main-wrap">
+  <div class="content-grid">
+
+    <!-- ── LEFT: Form ── -->
+    <div class="form-panel">
+      <div class="form-header">
+        <div class="form-header-icon">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M9 2L2 5v4c0 4.2 3.08 8.12 7 9.06C12.92 17.12 16 13.2 16 9V5L9 2z" stroke="#1652f0" stroke-width="1.5" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <h2>Loan Application</h2>
+          <p>Fill in the applicant's financial profile</p>
+        </div>
+      </div>
+
+      <form id="loan-form">
+
+        <!-- SECTION 1: Personal Profile -->
+        <div class="form-section">
+          <div class="section-label">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <circle cx="7" cy="4.5" r="2.5" stroke="#6b7280" stroke-width="1.4"/>
+              <path d="M1.5 12.5c0-3.04 2.46-5.5 5.5-5.5s5.5 2.46 5.5 5.5" stroke="#6b7280" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+            Personal Profile
+          </div>
+          <div class="fields-grid">
+            <div class="field">
+              <label>Age <span class="req">*</span></label>
+              <input type="number" id="person_age" min="18" max="100" placeholder="e.g. 30" value="30" required />
+            </div>
+            <div class="field">
+              <label>Home Ownership <span class="req">*</span></label>
+              <div class="select-wrap">
+                <select id="person_home_ownership" required>
+                  <option value="RENT" selected>🏠 Renting</option>
+                  <option value="OWN">🏡 Own</option>
+                  <option value="MORTGAGE">📋 Mortgage</option>
+                  <option value="OTHER">📦 Other</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION 2: Employment & Income -->
+        <div class="form-section">
+          <div class="section-label">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <rect x="1" y="4" width="12" height="8" rx="1.5" stroke="#6b7280" stroke-width="1.4"/>
+              <path d="M4 4V3a1 1 0 011-1h4a1 1 0 011 1v1" stroke="#6b7280" stroke-width="1.4"/>
+            </svg>
+            Employment & Income
+          </div>
+          <div class="fields-grid">
+            <div class="field">
+              <label>Annual Income ($) <span class="req">*</span></label>
+              <input type="number" id="person_income" min="1" placeholder="e.g. 60000" value="60000" required />
+            </div>
+            <div class="field">
+              <label>Employment Length (yrs) <span class="req">*</span></label>
+              <input type="number" id="person_emp_length" min="0" step="0.5" placeholder="e.g. 5" value="5" required />
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION 3: Loan Request -->
+        <div class="form-section">
+          <div class="section-label">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M7 1v12M3.5 3.5h5.25a2.25 2.25 0 010 4.5H4.25a2.25 2.25 0 000 4.5H10.5" stroke="#6b7280" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+            Loan Details
+          </div>
+          <div class="fields-grid">
+            <div class="field">
+              <label>Loan Amount ($) <span class="req">*</span></label>
+              <input type="number" id="loan_amnt" min="1" placeholder="e.g. 10000" value="10000" required />
+            </div>
+            <div class="field">
+              <label>Loan Intent <span class="req">*</span></label>
+              <div class="select-wrap">
+                <select id="loan_intent" required>
+                  <option value="PERSONAL" selected>💼 Personal</option>
+                  <option value="EDUCATION">🎓 Education</option>
+                  <option value="MEDICAL">🏥 Medical</option>
+                  <option value="VENTURE">🚀 Venture</option>
+                  <option value="HOMEIMPROVEMENT">🔨 Home Improvement</option>
+                  <option value="DEBTCONSOLIDATION">🔄 Debt Consolidation</option>
+                </select>
+              </div>
+            </div>
+            <div class="field field-full">
+              <label>Loan-to-Income Ratio</label>
+              <div class="calc-field" id="calc-lti">
+                <span id="lti-value">16.7%</span>
+                <span class="calc-label">Auto-calculated from amount ÷ income</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION 4: Credit History -->
+        <div class="form-section">
+          <div class="section-label">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <rect x="1" y="2" width="12" height="10" rx="1.5" stroke="#6b7280" stroke-width="1.4"/>
+              <path d="M1 5.5h12M4 8.5h2M4 10.5h4" stroke="#6b7280" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+            Credit History
+          </div>
+          <div class="fields-grid">
+            <div class="field">
+              <label>Credit History Length (yrs) <span class="req">*</span></label>
+              <input type="number" id="cb_person_cred_hist_length" min="0" placeholder="e.g. 5" value="5" required />
+            </div>
+            <div class="field">
+              <label>Default on File <span class="req">*</span></label>
+              <div class="select-wrap">
+                <select id="cb_person_default_on_file" required>
+                  <option value="N" selected>✅ No default</option>
+                  <option value="Y">⚠️ Has defaulted</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="submit-wrap">
+          <button type="submit" class="btn-submit" id="submit-btn">
+            <div class="spinner"></div>
+            <span class="btn-text">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style="vertical-align:middle;margin-right:4px">
+                <path d="M9 2L2 5v4c0 4.2 3.08 8.12 7 9.06C12.92 17.12 16 13.2 16 9V5L9 2z" stroke="white" stroke-width="1.5"/>
+                <path d="M6 9l2 2 4-4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              Analyze Application
+            </span>
+          </button>
+        </div>
+
+      </form>
+    </div>
+
+    <!-- ── RIGHT: Result Panel ── -->
+    <div class="result-panel" id="result-panel">
+
+      <!-- Empty state -->
+      <div class="result-empty" id="result-empty">
+        <svg width="120" height="120" viewBox="0 0 120 120" fill="none">
+          <circle cx="60" cy="60" r="48" fill="#eef2ff"/>
+          <path d="M40 75V55c0-1.1.9-2 2-2h36c1.1 0 2 .9 2 2v20" stroke="#818cf8" stroke-width="2.5" stroke-linecap="round"/>
+          <path d="M35 75h50" stroke="#818cf8" stroke-width="2.5" stroke-linecap="round"/>
+          <rect x="52" y="62" width="16" height="13" rx="2" fill="#c7d2fe"/>
+          <path d="M48 55v-8a12 12 0 0124 0v8" stroke="#818cf8" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="60" cy="45" r="3" fill="#818cf8"/>
+          <path d="M75 30l4 4M82 38l-4-4" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round"/>
+          <path d="M43 28l-3 3M40 34l3-3" stroke="#a5b4fc" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <h3>Ready to Assess</h3>
+        <p>Fill in the application form and click "Analyze Application" to get an instant AI prediction.</p>
+      </div>
+
+      <!-- Result content -->
+      <div class="result-content" id="result-content">
+
+        <div class="result-top">
+          <!-- Gauge -->
+          <div class="gauge-wrap">
+            <svg width="160" height="160" viewBox="0 0 160 160">
+              <circle class="gauge-bg" cx="80" cy="80" r="60"/>
+              <circle class="gauge-fill" id="gauge-fill" cx="80" cy="80" r="60"
+                stroke-dasharray="0 377" stroke-dashoffset="0"/>
+            </svg>
+            <div class="gauge-center">
+              <div class="gauge-pct" id="gauge-pct">—</div>
+              <div class="gauge-sub">approval prob.</div>
+            </div>
+          </div>
+
+          <!-- Verdict -->
+          <div class="verdict" id="verdict-badge">—</div>
+          <div class="verdict-sub" id="verdict-sub">—</div>
+
+          <!-- Risk bar -->
+          <div class="risk-row">
+            <span class="risk-label">Risk Level</span>
+            <div class="risk-bar-track">
+              <div class="risk-bar-fill" id="risk-bar"></div>
+            </div>
+            <span class="risk-value" id="risk-value">—</span>
+          </div>
+        </div>
+
+        <div class="result-details">
+          <hr class="details-divider"/>
+          <div class="details-title">Application Summary</div>
+          <div class="metric-list" id="metric-list"></div>
+          <button class="btn-reset" id="btn-reset">↩ Analyze Another Application</button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════ FOOTER ═══════════════════════════ -->
+<footer>
+  <div class="footer-inner">
+    <div>
+      <div class="footer-brand">
+        <svg width="20" height="20" viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="8" fill="#1652f0"/>
+          <path d="M16 5L7 9v7c0 5.25 3.85 10.15 9 11.33C21.15 26.15 25 21.25 25 16V9L16 5z" fill="rgba(255,255,255,.2)" stroke="white" stroke-width="1.5"/>
+          <path d="M11 16l3.5 3.5L21 13" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        LoanSense AI
+      </div>
+      <div class="footer-meta">ENSAE Paris — MLOps Production Course</div>
+    </div>
+    <div class="footer-chips">
+      <div class="footer-chip"><div class="pip"></div> Model v3 · @champion</div>
+      <div class="footer-chip">🎯 Accuracy 91.24%</div>
+      <div class="footer-chip">📊 F1 62.75%</div>
+      <div class="footer-chip">⚡ FastAPI + Kubernetes</div>
+    </div>
+    <div class="footer-links">
+      <a href="/docs" target="_blank">Swagger</a>
+      <a href="/metrics" target="_blank">Prometheus</a>
+      <a href="https://github.com/kellybourbon2/Loan-prediction-approval" target="_blank">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+<!-- ═══════════════════════════ JS ═══════════════════════════ -->
+<script>
+  const CIRC = 2 * Math.PI * 60; // ~377
+
+  // ── Auto-calc LTI ratio
+  function updateLTI() {
+    const income = parseFloat(document.getElementById('person_income').value) || 0;
+    const amnt   = parseFloat(document.getElementById('loan_amnt').value) || 0;
+    const ratio  = income > 0 ? amnt / income : 0;
+    document.getElementById('lti-value').textContent = (ratio * 100).toFixed(1) + '%';
+    const c = document.getElementById('calc-lti');
+    c.style.borderColor = ratio > 0.5 ? '#fca5a5' : ratio > 0.3 ? '#fcd34d' : '#c7d7fe';
+    c.style.color       = ratio > 0.5 ? '#dc2626' : ratio > 0.3 ? '#d97706' : '#1652f0';
+  }
+  document.getElementById('person_income').addEventListener('input', updateLTI);
+  document.getElementById('loan_amnt').addEventListener('input', updateLTI);
+  updateLTI();
+
+  // ── Animated counter
+  function animateNumber(el, target, decimals = 0, suffix = '') {
+    let start = 0, duration = 1200, startTime = null;
+    function step(ts) {
+      if (!startTime) startTime = ts;
+      const prog = Math.min((ts - startTime) / duration, 1);
+      const ease = 1 - Math.pow(1 - prog, 3);
+      const val  = (start + (target - start) * ease).toFixed(decimals);
+      el.textContent = val + suffix;
+      if (prog < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  // ── Render gauge
+  function renderGauge(prob) {
+    const fill   = document.getElementById('gauge-fill');
+    const pctEl  = document.getElementById('gauge-pct');
+    const offset = CIRC * (1 - prob);
+    const color  = prob >= 0.65 ? '#00875a' : prob >= 0.40 ? '#f59f00' : '#de350b';
+
+    fill.style.stroke          = color;
+    fill.style.strokeDasharray = `${CIRC} ${CIRC}`;
+    fill.style.strokeDashoffset = CIRC; // start empty
+    pctEl.style.color = color;
+
+    // animate
+    requestAnimationFrame(() => {
+      fill.style.strokeDashoffset = offset;
+    });
+    animateNumber(pctEl, Math.round(prob * 100), 0, '%');
+  }
+
+  // ── Render verdict
+  function renderVerdict(prob, approved) {
+    const badge = document.getElementById('verdict-badge');
+    const sub   = document.getElementById('verdict-sub');
+    const risk  = document.getElementById('risk-bar');
+    const rkVal = document.getElementById('risk-value');
+
+    if (approved && prob >= 0.65) {
+      badge.className = 'verdict approved';
+      badge.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8l3.5 3.5L13 5" stroke="#00875a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> APPROVED';
+      sub.textContent = 'Strong approval recommendation';
+      risk.style.width = (100 - prob * 100) + '%';
+      risk.style.background = '#00875a';
+      rkVal.textContent = 'LOW';
+      rkVal.style.color = '#00875a';
+    } else if (approved) {
+      badge.className = 'verdict review';
+      badge.innerHTML = '⚠️ CONDITIONAL';
+      sub.textContent = 'Approval with further review advised';
+      risk.style.width = (100 - prob * 100) + '%';
+      risk.style.background = '#f59f00';
+      rkVal.textContent = 'MED';
+      rkVal.style.color = '#f59f00';
+    } else {
+      badge.className = 'verdict declined';
+      badge.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 4l8 8M12 4l-8 8" stroke="#de350b" stroke-width="2" stroke-linecap="round"/></svg> DECLINED';
+      sub.textContent = 'High risk — loan not recommended';
+      risk.style.width = (100 - prob * 100) + '%';
+      risk.style.background = '#de350b';
+      rkVal.textContent = 'HIGH';
+      rkVal.style.color = '#de350b';
+    }
+  }
+
+  // ── Render metric list
+  function renderMetrics(data) {
+    const icons = {
+      'Age': '👤', 'Income': '💰', 'Loan Amount': '💳',
+      'Intent': '🎯', 'Home': '🏠', 'Employment': '💼',
+      'Credit History': '📋', 'Default': '⚠️', 'LTI Ratio': '📊',
+    };
+    const rows = [
+      ['Age',            data.person_age + ' yrs'],
+      ['Income',         '$' + Number(data.person_income).toLocaleString()],
+      ['Loan Amount',    '$' + Number(data.loan_amnt).toLocaleString()],
+      ['LTI Ratio',      (data.loan_percent_income * 100).toFixed(1) + '%'],
+      ['Intent',         data.loan_intent],
+      ['Home',           data.person_home_ownership],
+      ['Employment',     data.person_emp_length + ' yrs'],
+      ['Credit History', data.cb_person_cred_hist_length + ' yrs'],
+      ['Default',        data.cb_person_default_on_file === 'Y' ? '⚠️ Yes' : '✅ No'],
+    ];
+    document.getElementById('metric-list').innerHTML = rows.map(([k, v]) =>
+      `<div class="metric-row">
+         <span class="metric-key">${icons[k] || '•'} ${k}</span>
+         <span class="metric-val">${v}</span>
+       </div>`
+    ).join('');
+  }
+
+  // ── Form submit
+  document.getElementById('loan-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('submit-btn');
+    btn.classList.add('loading');
+    btn.disabled = true;
+
+    const income  = parseFloat(document.getElementById('person_income').value);
+    const amnt    = parseFloat(document.getElementById('loan_amnt').value);
+    const payload = {
+      person_age:                  parseInt(document.getElementById('person_age').value),
+      person_income:               income,
+      person_home_ownership:       document.getElementById('person_home_ownership').value,
+      person_emp_length:           parseFloat(document.getElementById('person_emp_length').value),
+      loan_intent:                 document.getElementById('loan_intent').value,
+      loan_amnt:                   amnt,
+      loan_percent_income:         parseFloat((amnt / income).toFixed(4)),
+      cb_person_default_on_file:   document.getElementById('cb_person_default_on_file').value,
+      cb_person_cred_hist_length:  parseInt(document.getElementById('cb_person_cred_hist_length').value),
+    };
+
+    try {
+      const res  = await fetch('/predict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const result = await res.json();
+
+      // Show result
+      document.getElementById('result-empty').style.display   = 'none';
+      const rc = document.getElementById('result-content');
+      rc.classList.add('visible');
+
+      renderGauge(result.probability);
+      renderVerdict(result.probability, result.approved);
+      renderMetrics(payload);
+
+      // Scroll to result on mobile
+      if (window.innerWidth < 900) {
+        document.getElementById('result-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    } finally {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  });
+
+  // ── Reset
+  document.getElementById('btn-reset').addEventListener('click', () => {
+    document.getElementById('result-content').classList.remove('visible');
+    document.getElementById('result-empty').style.display = 'flex';
+    document.getElementById('loan-form').reset();
+    updateLTI();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+</script>
+
+</body>
+</html>
