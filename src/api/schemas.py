@@ -42,3 +42,14 @@ class PredictionResponse(BaseModel):
     loan_status: int
     approved: bool
     probability: float
+
+
+class FeatureContribution(BaseModel):
+    feature: str
+    label: str
+    shap: float
+
+
+class ExplainResponse(BaseModel):
+    base_value: float
+    features: list[FeatureContribution]

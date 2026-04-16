@@ -428,7 +428,19 @@
 
     /* ── What-If Tab ── */
     .whatif-area { padding: 1.4rem 1.6rem; }
+    .explain-area { padding: 1.4rem 1.6rem; }
     .whatif-intro { font-size: .8rem; color: var(--muted); margin-bottom: 1.2rem; line-height: 1.5; }
+    .shap-row { display: flex; align-items: center; gap: .6rem; margin-bottom: .55rem; }
+    .shap-label { font-size: .75rem; font-weight: 500; color: var(--text); width: 130px; flex-shrink: 0; text-align: right; }
+    .shap-track { flex: 1; position: relative; height: 18px; display: flex; align-items: center; }
+    .shap-zero { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--border); }
+    .shap-bar { position: absolute; height: 14px; border-radius: 3px; transition: width .5s ease; }
+    .shap-bar.pos { background: #00875a; left: 50%; }
+    .shap-bar.neg { background: #de350b; right: 50%; }
+    .shap-val { font-size: .7rem; font-weight: 600; width: 44px; flex-shrink: 0; }
+    .shap-val.pos { color: #00875a; }
+    .shap-val.neg { color: #de350b; }
+    .explain-baseline { font-size: .75rem; color: var(--muted); text-align: center; margin-top: 1rem; padding-top: .8rem; border-top: 1px solid var(--border); }
     .slider-group { margin-bottom: 1.1rem; }
     .slider-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: .4rem; }
     .slider-label { font-size: .8rem; font-weight: 600; }
@@ -795,6 +807,7 @@
         <div class="result-tabs" id="result-tabs">
           <button class="tab-btn active" onclick="switchTab('verdict')">📊 Verdict</button>
           <button class="tab-btn" onclick="switchTab('whatif')">🔬 What-If</button>
+          <button class="tab-btn" onclick="switchTab('explain')">🧠 Explain</button>
           <button class="tab-btn" onclick="switchTab('history')">🕒 History</button>
         </div>
 
@@ -868,6 +881,16 @@
             </div>
 
             <button class="btn-whatif-reset" onclick="resetWhatIf()">↩ Reset to original values</button>
+          </div>
+        </div>
+
+        <!-- ── EXPLAIN TAB ── -->
+        <div class="tab-panel" id="tab-explain">
+          <div class="explain-area">
+            <p class="whatif-intro">SHAP values show how each feature pushed the decision toward approval <span style="color:var(--green)">▲</span> or rejection <span style="color:#de350b">▼</span>, relative to the average prediction.</p>
+            <div id="explain-loading" style="display:none;text-align:center;padding:2rem;color:var(--muted);font-size:.85rem">Computing explanations…</div>
+            <div id="explain-chart"></div>
+            <div id="explain-baseline" class="explain-baseline"></div>
           </div>
         </div>
 
@@ -1082,7 +1105,9 @@
   /* ─── API Call ─── */
   /* Resolve URLs relative to the app root, works behind any proxy prefix */
   const BASE_URL = window.location.pathname.replace(/\/ui\/?.*$/, '');
-  const PREDICT_URL = BASE_URL + '/predict';
+  const PREDICT_URL  = BASE_URL + '/predict';
+  const EXPLAIN_URL  = BASE_URL + '/explain';
+  let   explainCache = null;
 
   document.getElementById('nav-docs').href       = BASE_URL + '/docs';
   document.getElementById('nav-metrics').href    = BASE_URL + '/ui/metrics.html';
@@ -1107,8 +1132,9 @@
     const payload = buildPayload();
     try {
       const result = await callPredict(payload);
-      lastPayload = payload;
-      lastResult  = result;
+      lastPayload  = payload;
+      lastResult   = result;
+      explainCache = null;
       showResult(payload, result);
       saveHistory(payload, result);
     } catch (err) {
@@ -1223,13 +1249,57 @@
   }
 
   /* ─── Tabs ─── */
+  /* ─── XAI / Explain ─── */
+  async function fetchExplain() {
+    if (!lastPayload) return;
+    if (explainCache) { renderExplain(explainCache); return; }
+    document.getElementById('explain-loading').style.display = 'block';
+    document.getElementById('explain-chart').innerHTML = '';
+    document.getElementById('explain-baseline').textContent = '';
+    try {
+      const res = await fetch(EXPLAIN_URL, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(lastPayload),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      explainCache = await res.json();
+      renderExplain(explainCache);
+    } catch (e) {
+      document.getElementById('explain-chart').innerHTML =
+        `<p style="color:#de350b;font-size:.8rem;padding:1rem">Error: ${e.message}</p>`;
+    } finally {
+      document.getElementById('explain-loading').style.display = 'none';
+    }
+  }
+
+  function renderExplain(data) {
+    const maxAbs = Math.max(...data.features.map(f => Math.abs(f.shap)), 0.001);
+    const halfPct = v => Math.min((Math.abs(v) / maxAbs) * 50, 50);
+    document.getElementById('explain-chart').innerHTML = data.features.map(f => {
+      const pos = f.shap >= 0;
+      const pct = halfPct(f.shap);
+      const sign = pos ? '+' : '';
+      return `<div class="shap-row">
+        <span class="shap-label">${f.label}</span>
+        <div class="shap-track">
+          <div class="shap-zero"></div>
+          <div class="shap-bar ${pos ? 'pos' : 'neg'}" style="width:${pct}%"></div>
+        </div>
+        <span class="shap-val ${pos ? 'pos' : 'neg'}">${sign}${f.shap.toFixed(3)}</span>
+      </div>`;
+    }).join('');
+    document.getElementById('explain-baseline').textContent =
+      `Baseline (average model output): ${(data.base_value * 100).toFixed(1)}% approval probability`;
+  }
+
   function switchTab(name) {
     document.querySelectorAll('.tab-btn').forEach((b, i) => {
-      b.classList.toggle('active', ['verdict','whatif','history'][i] === name);
+      b.classList.toggle('active', ['verdict','whatif','explain','history'][i] === name);
     });
     document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
     document.getElementById('tab-' + name).classList.add('active');
     if (name === 'history') renderHistory();
+    if (name === 'explain') fetchExplain();
   }
 
   /* ─── Reset ─── */
