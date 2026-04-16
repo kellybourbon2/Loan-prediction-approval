@@ -564,8 +564,8 @@
       LoanSense<span style="color:#60a5fa;margin-left:2px">AI</span>
     </a>
     <div class="nav-right">
-      <a href="/docs" class="nav-link" target="_blank">API Docs</a>
-      <a href="/metrics" class="nav-link" target="_blank">Metrics</a>
+      <a id="nav-docs" href="#" class="nav-link" target="_blank">API Docs</a>
+      <a id="nav-metrics" href="#" class="nav-link" target="_blank">Metrics</a>
       <span class="nav-badge">@champion model</span>
       <button class="dark-toggle" id="dark-toggle" title="Toggle dark mode">🌙</button>
     </div>
@@ -905,8 +905,8 @@
       <div class="footer-chip">⚡ FastAPI + K8s</div>
     </div>
     <div class="footer-links">
-      <a href="/docs" target="_blank">Swagger</a>
-      <a href="/metrics" target="_blank">Prometheus</a>
+      <a id="footer-docs" href="#" target="_blank">Swagger</a>
+      <a id="footer-metrics" href="#" target="_blank">Prometheus</a>
       <a href="https://github.com/kellybourbon2/Loan-prediction-approval" target="_blank">GitHub</a>
     </div>
   </div>
@@ -1080,8 +1080,17 @@
   }
 
   /* ─── API Call ─── */
+  /* Resolve URLs relative to the app root, works behind any proxy prefix */
+  const BASE_URL = window.location.pathname.replace(/\/ui\/?.*$/, '');
+  const PREDICT_URL = BASE_URL + '/predict';
+
+  document.getElementById('nav-docs').href       = BASE_URL + '/docs';
+  document.getElementById('nav-metrics').href    = BASE_URL + '/ui/metrics.html';
+  document.getElementById('footer-docs').href    = BASE_URL + '/docs';
+  document.getElementById('footer-metrics').href = BASE_URL + '/ui/metrics.html';
+
   async function callPredict(payload) {
-    const res = await fetch('/predict', {
+    const res = await fetch(PREDICT_URL, {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify(payload),
     });
