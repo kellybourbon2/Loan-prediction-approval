@@ -166,6 +166,10 @@ def main() -> None:
     parser.add_argument(
         "--window", type=int, default=500, help="Size of each comparison window"
     )
+    parser.add_argument(
+        "--fail-on-drift", action="store_true",
+        help="Exit with code 1 if drift is detected (for CI use)"
+    )
     args = parser.parse_args()
 
     if not args.log_file.exists():
@@ -189,6 +193,14 @@ def main() -> None:
     prediction = analyse_prediction_drift(reference, current)
 
     print_report(numerical, categorical, prediction)
+
+    drifted = (
+        sum(r["drift_detected"] for r in numerical.values())
+        + sum(r["drift_detected"] for r in categorical.values())
+        + (1 if prediction.get("drift_detected") else 0)
+    )
+    if args.fail_on_drift and drifted > 0:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

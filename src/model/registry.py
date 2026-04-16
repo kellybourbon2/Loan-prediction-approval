@@ -28,40 +28,66 @@ def register_model(run_id: str, model_name: str = MLFLOW_MODEL_NAME) -> str:
     return mv.version
 
 
+def _get_champion_f1(model_name: str, client: MlflowClient) -> float | None:
+    """Return the test_f1_score of the current @champion, or None if no champion."""
+    try:
+        mv = client.get_model_version_by_alias(model_name, "champion")
+        run = client.get_run(mv.run_id)
+        return run.data.metrics.get("test_f1_score")
+    except mlflow.exceptions.MlflowException:
+        return None
+
+
 def promote_to_champion(
     version: str,
     f1: float,
     model_name: str = MLFLOW_MODEL_NAME,
     threshold: float = F1_PROMOTION_THRESHOLD,
 ) -> bool:
-    """Promote model version to @champion if F1 exceeds threshold.
+    """Promote model version to @champion only if:
+      1. F1 >= absolute threshold
+      2. F1 > current champion's F1 (regression guard)
 
     Returns True if promoted, False otherwise.
     """
     client = MlflowClient()
 
-    if f1 >= threshold:
-        # Remove champion alias from previous version if it exists
-        try:
-            old_champion = client.get_model_version_by_alias(model_name, "champion")
-            client.delete_registered_model_alias(name=model_name, alias="champion")
-            print(f"Removed @champion from previous version v{old_champion.version}")
-        except mlflow.exceptions.MlflowException:
-            pass  # no previous champion alias exists yet
-
-        client.set_registered_model_alias(
-            name=model_name,
-            alias="champion",
-            version=version,
+    if f1 < threshold:
+        print(
+            f"Model v{version} NOT promoted (F1={f1:.4f} < threshold={threshold}). "
+            "Stays as @challenger."
         )
-        print(f"Model v{version} promoted to @champion (F1={f1:.4f} >= {threshold})")
-        return True
+        return False
 
-    print(
-        f"Model v{version} NOT promoted (F1={f1:.4f} < threshold={threshold}). "
-        "Stays as @challenger."
+    champion_f1 = _get_champion_f1(model_name, client)
+    if champion_f1 is not None and f1 <= champion_f1:
+        print(
+            f"Model v{version} NOT promoted — regression detected "
+            f"(challenger F1={f1:.4f} <= champion F1={champion_f1:.4f})."
+        )
+        return False
+
+    # Remove champion alias from previous version
+    try:
+        old_champion = client.get_model_version_by_alias(model_name, "champion")
+        client.delete_registered_model_alias(name=model_name, alias="champion")
+        print(f"Removed @champion from previous version v{old_champion.version}")
+    except mlflow.exceptions.MlflowException:
+        pass
+
+    client.set_registered_model_alias(
+        name=model_name,
+        alias="champion",
+        version=version,
     )
-    return False
+    if champion_f1 is not None:
+        print(
+            f"Model v{version} promoted to @champion "
+            f"(F1={f1:.4f} > previous champion F1={champion_f1:.4f})"
+        )
+    else:
+        print(f"Model v{version} promoted to @champion (F1={f1:.4f}, first champion)")
+    return True
 
 
 def load_champion_model(model_name: str = MLFLOW_MODEL_NAME):
