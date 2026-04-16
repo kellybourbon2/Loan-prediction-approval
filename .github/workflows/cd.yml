@@ -3,6 +3,11 @@ name: CD
 on:
   push:
     branches: [ossama]
+    paths:
+      - "src/**"
+      - "Dockerfile"
+      - "pyproject.toml"
+      - "uv.lock"
 
 jobs:
   build-and-push:
