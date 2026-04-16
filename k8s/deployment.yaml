@@ -19,21 +19,11 @@ spec:
     spec:
       containers:
         - name: loan-api
-          # Builds env at runtime: git clone + uv sync (no Docker needed on SSPCloud)
-          # mlflow.db mounted from Secret — no MLflow server needed for inference
-          image: python:3.13-slim
-          imagePullPolicy: IfNotPresent
+          image: oualyoss/loan-api:latest
+          imagePullPolicy: Always
           command: ["/bin/sh", "-c"]
           args:
             - |
-              set -e
-              apt-get update -qq && apt-get install -y -qq git curl ca-certificates
-              curl -LsSf https://astral.sh/uv/install.sh | sh
-              export PATH="$HOME/.local/bin:$PATH"
-              git clone --depth=1 --branch ossama \
-                https://github.com/kellybourbon2/Loan-prediction-approval.git /app
-              cd /app
-              uv sync --frozen --no-dev --no-install-project
               cp /mlflow-secret/mlflow.db /tmp/mlflow.db
               exec uv run uvicorn src.api.app:app --host 0.0.0.0 --port 8000
           ports:
