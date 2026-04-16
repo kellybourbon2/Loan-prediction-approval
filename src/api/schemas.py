@@ -17,7 +17,7 @@ class LoanApplication(BaseModel):
         "HOMEIMPROVEMENT",
     ]
     loan_amnt: float = Field(gt=0)
-    loan_percent_income: float = Field(ge=0, le=1)
+    loan_percent_income: float = Field(ge=0)
     cb_person_default_on_file: Literal["Y", "N"]
     cb_person_cred_hist_length: int = Field(ge=0)
 
