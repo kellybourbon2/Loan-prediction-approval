@@ -24,8 +24,10 @@ A full MLOps pipeline for predicting loan approval, covering data processing, mo
 |------|--------|
 | Development best practices (pre-commit, linting, tests) | ✅ |
 | ML model for a business need (loan approval) | ✅ |
-| Cross-validation + hyperparameter fine-tuning | ✅ |
+| Cross-validation + hyperparameter fine-tuning (XGBoost, CatBoost, RandomForest) | ✅ |
 | Probability calibration (isotonic regression) | ✅ |
+| Proper train / calibration / eval holdout split | ✅ |
+| Confusion matrix logged as MLflow artifact | ✅ |
 | Reproducible fine-tuning via MLflow | ✅ |
 | FastAPI to expose the best model | ✅ |
 | Batch prediction endpoint | ✅ |
@@ -38,6 +40,9 @@ A full MLOps pipeline for predicting loan approval, covering data processing, mo
 | Drift detection → automatic retraining | ✅ |
 | Model regression guard before promotion | ✅ |
 | Unit tests — preprocessing + API endpoints (14 tests) | ✅ |
+| Integration tests — real HTTP stack (8 tests) | ✅ |
+| Post-deploy healthcheck + automatic rollback | ✅ |
+| API security hardening (thread safety, error leakage, batch limit) | ✅ |
 
 ---
 
@@ -53,17 +58,17 @@ A full MLOps pipeline for predicting loan approval, covering data processing, mo
 │   ├── model/
 │   │   ├── train.py          # Model training
 │   │   ├── tune.py           # Hyperopt tuning
-│   │   ├── evaluate.py       # Metrics evaluation
+│   │   ├── evaluate.py       # Metrics + confusion matrix evaluation
 │   │   ├── registry.py       # MLflow registry + champion promotion
-│   │   └── search_space.py   # Hyperopt search space
+│   │   └── search_space.py   # Hyperopt search space (XGBoost, CatBoost, RF)
 │   ├── data_processing/
 │   │   ├── preprocessing.py  # DataPreprocessor (clean, encode, scale)
 │   │   └── data_load.py      # S3 data loading
 │   ├── main.py               # Full training entrypoint
 │   └── drift_analysis.py     # Feature & prediction drift detection
 ├── .github/workflows/
-│   ├── ci.yml                # Lint + unit tests on every push
-│   ├── cd.yml                # Build & push Docker image (src changes only)
+│   ├── ci.yml                # Lint + unit tests + integration tests on every push
+│   ├── cd.yml                # Build Docker image → push → healthcheck → rollback
 │   ├── retrain.yml           # Manual / scheduled retraining
 │   └── drift_check.yml       # Daily drift check → triggers retrain if needed
 ├── k8s/                      # Kubernetes manifests (ArgoCD GitOps)
@@ -77,7 +82,8 @@ A full MLOps pipeline for predicting loan approval, covering data processing, mo
 │           └── alerting/     # Alert rules + contact points
 ├── unit_tests/
 │   ├── test_preprocessing.py # DataPreprocessor tests
-│   └── test_api.py           # API endpoint tests (predict, batch, explain)
+│   ├── test_api.py           # API endpoint tests (predict, batch, explain) — mocked
+│   └── test_integration.py   # Integration tests — real HTTP stack against deployed API
 ├── Dockerfile
 ├── docker-compose.yml        # Local stack (API + Prometheus + Grafana)
 ├── pyproject.toml
@@ -119,19 +125,35 @@ The dataset (Kaggle Playground S4E10) must be uploaded to your bucket as `train.
 ## 2 — Development Best Practices
 
 ```bash
-# Linting
-uv run ruff check src/
-uv run black src/
+# Linting + formatting (also runs automatically on every git commit via pre-commit)
+uv run ruff check src/ --fix
+uv run ruff format src/
 
-# Unit tests (14 tests: preprocessing + API endpoints)
-uv run pytest unit_tests/ -v
+# Unit tests — mocked (14 tests: preprocessing + API endpoints)
+uv run pytest unit_tests/ --ignore=unit_tests/test_integration.py -v
+
+# Integration tests — requires a running API (local or deployed)
+INTEGRATION_API_URL=https://loan-api-oualy.user.lab.sspcloud.fr \
+  uv run pytest unit_tests/test_integration.py -v
 ```
 
-Tests cover:
-- **Preprocessing:** clean, feature engineering, split, encoding
-- **API `/predict`:** valid payload, approval/rejection logic, invalid inputs (422)
-- **API `/predict/batch`:** structure, counts, approval rate, empty list guard
-- **API `/explain`:** feature structure, SHAP values range, base value
+### Pre-commit hooks
+
+Ruff (lint + format) runs automatically before every `git commit`. To install:
+
+```bash
+uv run pre-commit install
+```
+
+If ruff reformats a file, the commit is blocked — simply re-add the file and commit again.
+
+### Test coverage
+
+| Suite | Tests | What is covered |
+|-------|-------|-----------------|
+| `test_preprocessing.py` | 6 | `DataPreprocessor`: clean, feature engineering, split, encoding |
+| `test_api.py` | 14 | `/predict`, `/predict/batch`, `/explain` with mocked model |
+| `test_integration.py` | 8 | Real HTTP calls to the deployed API — health, predict, batch, explain, metrics |
 
 ---
 
@@ -141,24 +163,39 @@ Tests cover:
 uv run python src/main.py
 ```
 
-Pipeline:
+### Pipeline
+
 1. Load `train.csv` from SSPCloud (MinIO)
 2. Preprocess (`DataPreprocessor`: clean → feature engineering → scale → encode)
-3. 5-fold cross-validation + hyperparameter tuning with **Hyperopt** (`MAX_EVALS=10`)
-4. Train best model (XGBoost / CatBoost / RandomForest)
-5. **Calibrate probabilities** with `CalibratedClassifierCV(method='isotonic')` on a held-out calibration split
-6. Evaluate on a separate eval split
-7. Log run to **MLflow** (metrics, params, artifacts)
-8. Register in MLflow Model Registry as `@challenger`
-9. **Promote to `@champion`** only if:
-   - F1 ≥ `F1_PROMOTION_THRESHOLD` (0.5)
-   - F1 > current champion's F1 (regression guard — new model must be strictly better)
+3. **3-way split:** training set / calibration set / evaluation set
+   - The model never sees the calibration or evaluation sets during training
+   - Calibration and evaluation use disjoint halves of the original holdout
+4. 5-fold cross-validation + hyperparameter tuning with **Hyperopt** (`MAX_EVALS=10`)
+   - Search space covers **XGBoost**, **CatBoost**, and **RandomForest** — best model wins
+5. Train best model on the full training set
+6. **Calibrate probabilities** with `CalibratedClassifierCV(method='isotonic', cv='prefit')` on the calibration split — ensures `predict_proba` outputs are well-calibrated
+7. Evaluate on the held-out eval split (never seen during training or calibration)
+8. Log to **MLflow**: metrics, params, **confusion matrix** (PNG artifact), calibrated model
+9. Register in MLflow Model Registry as `@challenger`
+10. **Promote to `@champion`** only if:
+    - F1 ≥ `F1_PROMOTION_THRESHOLD` (0.5)
+    - F1 > current champion's F1 (regression guard — new model must be strictly better)
 
 ```bash
 # Inspect experiments
 uv run mlflow ui --backend-store-uri sqlite:///mlflow.db
 # → http://127.0.0.1:5000
 ```
+
+### Why all three models?
+
+| Model | Strength |
+|-------|----------|
+| **XGBoost** | Best performance on tabular data in most benchmarks |
+| **CatBoost** | Handles categorical features natively, less tuning needed |
+| **RandomForest** | Robust baseline, easy to interpret |
+
+Hyperopt explores all three automatically and picks the best configuration.
 
 ---
 
@@ -173,12 +210,23 @@ uv run uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/` | Web UI (loan assessment form) |
-| `GET` | `/health` | Health check |
+| `GET` | `/health` | Health check — returns 503 if model not loaded |
 | `POST` | `/predict` | Single loan approval prediction |
-| `POST` | `/predict/batch` | Batch prediction (list of applications) |
+| `POST` | `/predict/batch` | Batch prediction (list of applications, max 500) |
 | `POST` | `/explain` | SHAP feature contributions for one application |
 | `GET` | `/metrics` | Prometheus metrics |
 | `GET` | `/docs` | Swagger UI |
+
+### Security hardening
+
+Four issues were identified and fixed:
+
+| Issue | Fix |
+|-------|-----|
+| `/health` returned 200 even before the model finished loading | Returns **503** until both model and preprocessor are in `app.state` |
+| Rolling approval-rate window was not thread-safe | Protected with `threading.Lock()` |
+| `HTTPException` exposed `str(e)` (internal stacktrace) to clients | Errors are **logged server-side**; clients receive a generic message |
+| `/predict/batch` accepted unlimited list sizes (OOM risk) | Hard limit of **500 items** per request |
 
 ### Single prediction
 
@@ -224,7 +272,7 @@ curl -X POST https://loan-api-oualy.user.lab.sspcloud.fr/explain \
 #   }
 ```
 
-SHAP values are computed using native tree contributions (`pred_contribs=True` for XGBoost, `ShapValues` for CatBoost) — no external `shap` library required. Positive values push toward approval, negative toward rejection.
+SHAP values are computed using native tree contributions (`pred_contribs=True` for XGBoost, `ShapValues` for CatBoost) — no external `shap` library required (incompatible with Python 3.13). Positive values push toward approval, negative toward rejection.
 
 ---
 
@@ -249,10 +297,34 @@ The Docker image is automatically built and pushed to Docker Hub (`oualyoss/loan
 
 | Workflow | Trigger | Action |
 |----------|---------|--------|
-| `ci.yml` | Every push | Lint (Ruff) + unit tests |
-| `cd.yml` | Push on `src/**`, `Dockerfile`, `pyproject.toml` | Build Docker image → push to Docker Hub → update `k8s/deployment.yaml` |
+| `ci.yml` | Every push | Ruff lint + unit tests → integration tests against deployed API |
+| `cd.yml` | Push on `src/**`, `Dockerfile`, `pyproject.toml` | Build Docker → push to Docker Hub → update `k8s/deployment.yaml` → **post-deploy healthcheck** → **auto-rollback** on failure |
 | `retrain.yml` | Manual / every Monday 2am UTC | Full retraining + MLflow registry update |
 | `drift_check.yml` | Daily 8am UTC | Download logs from S3 → drift analysis → trigger `retrain.yml` if drift detected |
+
+### Post-deploy healthcheck & automatic rollback
+
+After every deployment, the CD pipeline:
+
+1. Waits 60 seconds for ArgoCD to sync and the pod to become ready
+2. Calls `GET /health` on the live API
+3. **If the healthcheck passes** → deployment is confirmed
+4. **If the healthcheck fails** → a rollback commit is pushed automatically, restoring `k8s/deployment.yaml` to the previous image tag, which ArgoCD picks up and re-deploys
+
+This ensures a broken image can never stay live: the previous working version is always restored within minutes.
+
+### Integration tests in CI
+
+The `integration-test` job runs after unit tests and hits the live deployed API (configured via the `API_URL` repository variable in GitHub Actions). It covers:
+
+- `/health` returns 200
+- `/predict` returns a valid response and correct schema
+- `/predict` rejects invalid payloads with 422
+- `/predict` does not leak internal tracebacks on errors
+- `/predict/batch` returns correct counts and approval rate
+- `/predict/batch` rejects empty lists with 422
+- `/explain` returns feature contributions with correct structure
+- `/metrics` exposes `loan_predictions_total`
 
 ---
 
@@ -350,3 +422,11 @@ Three alert rules provisioned automatically:
 | `F1_PROMOTION_THRESHOLD` | 0.5 | Min F1 to promote to @champion |
 | `MLFLOW_MODEL_NAME` | `loan-approval-model` | Registry model name |
 | `MLFLOW_TRACKING_URI` | `sqlite:///mlflow.db` | Override via env var |
+
+### GitHub Actions variables
+
+| Variable | Where to set | Description |
+|----------|-------------|-------------|
+| `DOCKERHUB_USERNAME` | Settings → Variables → Actions | Docker Hub username |
+| `API_URL` | Settings → Variables → Actions | Deployed API base URL — enables integration tests and post-deploy healthcheck |
+| `DOCKERHUB_TOKEN` | Settings → **Secrets** → Actions | Docker Hub access token |
