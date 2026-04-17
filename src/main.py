@@ -25,7 +25,12 @@ if __name__ == "__main__":
     mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
 
     df_train = data_loading(set="train")
-    X_train, X_test, y_train, y_test, preprocessor = preprocess_data(df_train)
+    X_train, X_holdout, y_train, y_holdout, preprocessor = preprocess_data(df_train)
+
+    # Split holdout into calibration (50 %) + eval (50 %) — never seen during training
+    X_cal, X_eval, y_cal, y_eval = train_test_split(
+        X_holdout, y_holdout, test_size=0.5, random_state=42
+    )
 
     trials = Trials()
 
@@ -51,10 +56,7 @@ if __name__ == "__main__":
         best_model = build_model(best_params)
         best_model = train_model(best_model, X_train, y_train)
 
-        # Calibrate probabilities on a held-out calibration split
-        X_cal, X_eval, y_cal, y_eval = train_test_split(
-            X_test, y_test, test_size=0.5, random_state=42
-        )
+        # Calibrate probabilities on the calibration split (never seen during training)
         calibrated_model = CalibratedClassifierCV(best_model, method="isotonic", cv="prefit")
         calibrated_model.fit(X_cal, y_cal)
         mlflow.log_param("calibration_method", "isotonic")
