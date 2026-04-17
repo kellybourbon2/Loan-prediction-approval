@@ -58,7 +58,10 @@ class TestAPIEndpoints(unittest.TestCase):
 
         cls._patches = [
             patch("api.app.load_champion_model", return_value=_make_model()),
-            patch("api.app.load_preprocessor_from_registry", return_value=_make_preprocessor()),
+            patch(
+                "api.app.load_preprocessor_from_registry",
+                return_value=_make_preprocessor(),
+            ),
         ]
         for p in cls._patches:
             p.start()
@@ -93,6 +96,7 @@ class TestAPIEndpoints(unittest.TestCase):
     def test_predict_approved_when_low_default_proba(self):
         """P(default)=0.1 → P(approval)=0.9 → approved=True."""
         from api.app import app
+
         app.state.model = _make_model(proba_default=0.1)
         res = self.client.post("/predict", json=VALID_PAYLOAD)
         app.state.model = _make_model()  # restore
@@ -102,6 +106,7 @@ class TestAPIEndpoints(unittest.TestCase):
     def test_predict_rejected_when_high_default_proba(self):
         """P(default)=0.9 → P(approval)=0.1 → approved=False."""
         from api.app import app
+
         app.state.model = _make_model(proba_default=0.9)
         res = self.client.post("/predict", json=VALID_PAYLOAD)
         app.state.model = _make_model()  # restore
