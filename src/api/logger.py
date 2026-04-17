@@ -2,7 +2,8 @@
 
 Writes one JSON line per prediction to logs/predictions.jsonl.
 This file is the source of truth for drift analysis.
-Syncs to S3 every 100 predictions (background thread, non-blocking).
+Syncs to S3 every 10 predictions and on a 60-second periodic timer
+(background threads, non-blocking) — limits data loss on pod restart.
 """
 
 import json
@@ -13,7 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 _prediction_count = 0
-_SYNC_EVERY = 100
+_SYNC_EVERY = 10
 
 
 def _sync_to_s3(log_path: Path) -> None:
@@ -42,6 +43,19 @@ class _JSONFormatter(logging.Formatter):
         return json.dumps(entry)
 
 
+def _start_periodic_sync(log_path: Path, interval: int = 60) -> None:
+    """Spawn a daemon thread that syncs to S3 every `interval` seconds."""
+
+    def _loop():
+        import time
+
+        while True:
+            time.sleep(interval)
+            _sync_to_s3(log_path)
+
+    threading.Thread(target=_loop, daemon=True).start()
+
+
 def get_prediction_logger() -> logging.Logger:
     """Return (and lazily initialise) the prediction logger."""
     logger = logging.getLogger("predictions")
@@ -51,10 +65,13 @@ def get_prediction_logger() -> logging.Logger:
     log_dir = Path(os.getenv("LOG_DIR", "logs"))
     log_dir.mkdir(parents=True, exist_ok=True)
 
-    handler = logging.FileHandler(log_dir / "predictions.jsonl", encoding="utf-8")
+    log_path = log_dir / "predictions.jsonl"
+    handler = logging.FileHandler(log_path, encoding="utf-8")
     handler.setFormatter(_JSONFormatter())
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
+
+    _start_periodic_sync(log_path)
     return logger
 
 

@@ -35,6 +35,7 @@ def build_model(params: dict):
             min_child_weight=float(params["min_child_weight"]),
             random_state=int(params["seed"]),
             n_estimators=500,
+            early_stopping_rounds=50,
             eval_metric="logloss",
             n_jobs=-1,
         )
@@ -45,6 +46,7 @@ def build_model(params: dict):
             learning_rate=float(params["learning_rate"]),
             l2_leaf_reg=float(params["l2_leaf_reg"]),
             iterations=int(params["iterations"]),
+            early_stopping_rounds=50,
             random_seed=int(params["seed"]),
             verbose=False,
         )
@@ -57,11 +59,16 @@ def objective(params, X_train, y_train):
     model = build_model(params)
     cv = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_STATE)
 
+    boosted = type(model).__name__ in ("XGBClassifier", "CatBoostClassifier")
+
     f1_scores = []
     for train_idx, val_idx in cv.split(X_train, y_train):
         X_tr, X_val = X_train[train_idx], X_train[val_idx]
         y_tr, y_val = np.array(y_train)[train_idx], np.array(y_train)[val_idx]
-        model.fit(X_tr, y_tr)
+        if boosted:
+            model.fit(X_tr, y_tr, eval_set=[(X_val, y_val)], verbose=False)
+        else:
+            model.fit(X_tr, y_tr)
         f1_scores.append(f1_score(y_val, model.predict(X_val)))
 
     return 1.0 - np.mean(f1_scores)  # hyperopt minimises

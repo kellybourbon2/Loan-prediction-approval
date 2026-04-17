@@ -24,6 +24,7 @@ jobs:
         run: uv sync --frozen
 
       - name: Download prediction logs from S3
+        id: download
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -42,11 +43,17 @@ jobs:
               print("Logs downloaded successfully.")
           except s3.exceptions.NoSuchKey:
               print("No prediction logs found on S3 — skipping drift check.")
-              sys.exit(0)
           EOF
+          if [ -s logs/predictions.jsonl ]; then
+            echo "has_logs=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_logs=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No prediction logs yet — drift check skipped."
+          fi
 
       - name: Run drift analysis
         id: drift
+        if: steps.download.outputs.has_logs == 'true'
         run: |
           uv run python src/drift_analysis.py --fail-on-drift \
             && echo "drift=false" >> $GITHUB_OUTPUT \
