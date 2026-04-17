@@ -1,13 +1,7 @@
-import sys
-from pathlib import Path
-
 import mlflow
 from mlflow import MlflowClient
 
-ROOT_DIR = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(ROOT_DIR))
-
-from config import F1_PROMOTION_THRESHOLD, MLFLOW_MODEL_NAME  # noqa: E402
+from config import F1_PROMOTION_THRESHOLD, MLFLOW_MODEL_NAME
 
 
 def register_model(run_id: str, model_name: str = MLFLOW_MODEL_NAME) -> str:

@@ -1,4 +1,3 @@
-import sys
 from pathlib import Path
 
 import pandas as pd
@@ -6,11 +5,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, StandardScaler
 
-# define root dir so can see src module
-ROOT_DIR = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(ROOT_DIR))
-
-from config import (  # noqa: E402
+from config import (
     AGE_COLUMN,
     AGE_CATEGORY_COLUMN,
     BINS_AGE,
@@ -156,6 +151,9 @@ def preprocess_data(df: pd.DataFrame):
 
 
 if __name__ == "__main__":
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
     from data_load import DataLoader
 
     loader = DataLoader()

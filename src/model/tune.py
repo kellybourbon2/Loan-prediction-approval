@@ -1,6 +1,3 @@
-import sys
-from pathlib import Path
-
 import numpy as np
 import xgboost as xgb
 from catboost import CatBoostClassifier
@@ -8,13 +5,10 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import f1_score
 from sklearn.model_selection import StratifiedKFold
 
-ROOT_DIR = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(ROOT_DIR))
-
-from config import CV_FOLDS, RANDOM_STATE  # noqa: E402
+from config import CV_FOLDS, RANDOM_STATE
 
 
-def build_model(params: dict):
+def build_model(params: dict, y_train=None):
     print(f"Building model with params: {params}")
     model_name = params["model_name"]
 
@@ -27,6 +21,12 @@ def build_model(params: dict):
         )
 
     if model_name == "xgboost":
+        scale_pos_weight = 1.0
+        if y_train is not None:
+            y_arr = np.array(y_train)
+            neg, pos = (y_arr == 0).sum(), (y_arr == 1).sum()
+            if pos > 0:
+                scale_pos_weight = neg / pos
         return xgb.XGBClassifier(
             max_depth=int(params["max_depth"]),
             learning_rate=float(params["learning_rate"]),
@@ -37,6 +37,7 @@ def build_model(params: dict):
             n_estimators=500,
             early_stopping_rounds=50,
             eval_metric="logloss",
+            scale_pos_weight=scale_pos_weight,
             n_jobs=-1,
         )
 
@@ -48,6 +49,7 @@ def build_model(params: dict):
             iterations=int(params["iterations"]),
             early_stopping_rounds=50,
             random_seed=int(params["seed"]),
+            auto_class_weights="Balanced",
             verbose=False,
         )
 
@@ -56,15 +58,15 @@ def build_model(params: dict):
 
 def objective(params, X_train, y_train):
     """Evaluate model using stratified cross-validation — avoids overfitting to train set."""
-    model = build_model(params)
     cv = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_STATE)
 
-    boosted = type(model).__name__ in ("XGBClassifier", "CatBoostClassifier")
+    boosted = params["model_name"] in ("xgboost", "catboost")
 
     f1_scores = []
     for train_idx, val_idx in cv.split(X_train, y_train):
         X_tr, X_val = X_train[train_idx], X_train[val_idx]
         y_tr, y_val = np.array(y_train)[train_idx], np.array(y_train)[val_idx]
+        model = build_model(params, y_tr)
         if boosted:
             model.fit(X_tr, y_tr, eval_set=[(X_val, y_val)], verbose=False)
         else:

@@ -53,7 +53,7 @@ if __name__ == "__main__":
                 mlflow.log_param(f"best_{k}", v)
 
         # Rebuild + train BEST model
-        best_model = build_model(best_params)
+        best_model = build_model(best_params, y_train)
         best_model = train_model(best_model, X_train, y_train)
 
         # Calibrate probabilities on the calibration split (never seen during training)

@@ -14,9 +14,11 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 logger = logging.getLogger(__name__)
 
-ROOT_DIR = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(ROOT_DIR))
-sys.path.insert(0, str(ROOT_DIR / "src"))
+# config.py is at project root; src/ modules are siblings — both need to be on sys.path
+# because uvicorn runs as `src.api.app:app` from the project root, not from src/
+_ROOT = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(_ROOT))
+sys.path.insert(0, str(_ROOT / "src"))
 
 from config import MLFLOW_TRACKING_URI  # noqa: E402
 from model.registry import load_champion_model, load_preprocessor_from_registry  # noqa: E402
@@ -169,6 +171,15 @@ _FEATURE_LABELS = {
 }
 
 
+def _feature_label(name: str) -> str:
+    """Return a display label for a feature name.
+
+    Falls back to title-cased snake_case so new features get a readable label
+    automatically without requiring a manual update to _FEATURE_LABELS.
+    """
+    return _FEATURE_LABELS.get(name, name.replace("_", " ").title())
+
+
 def _sigmoid(x: float) -> float:
     return 1.0 / (1.0 + np.exp(-x))
 
@@ -246,7 +257,7 @@ def explain(request: LoanApplication):
     return ExplainResponse(
         base_value=round(base, 4),
         features=[
-            {"feature": f, "label": _FEATURE_LABELS.get(f, f), "shap": round(v, 4)}
+            {"feature": f, "label": _feature_label(f), "shap": round(v, 4)}
             for f, v in contributions
         ],
     )
