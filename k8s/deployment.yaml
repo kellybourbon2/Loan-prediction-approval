@@ -21,28 +21,18 @@ spec:
         - name: loan-api
           image: oualyoss/loan-api:225a608d6ac7e14f74ad3f33998155b5231b3548
           imagePullPolicy: Always
-          command: ["/bin/sh", "-c"]
-          args:
-            - |
-              cp /mlflow-secret/mlflow.db /tmp/mlflow.db
-              exec uv run uvicorn src.api.app:app --host 0.0.0.0 --port 8000
           ports:
             - containerPort: 8000
 
           env:
             - name: MLFLOW_TRACKING_URI
-              value: "sqlite:////tmp/mlflow.db"
+              value: "http://mlflow:5000"
             - name: MLFLOW_S3_ENDPOINT_URL
               value: "https://minio.lab.sspcloud.fr"
 
           envFrom:
             - secretRef:
                 name: loan-api-secret
-
-          volumeMounts:
-            - name: mlflow-db
-              mountPath: /mlflow-secret
-              readOnly: true
 
           resources:
             requests:
@@ -68,7 +58,3 @@ spec:
             periodSeconds: 15
             failureThreshold: 10
 
-      volumes:
-        - name: mlflow-db
-          secret:
-            secretName: mlflow-db
