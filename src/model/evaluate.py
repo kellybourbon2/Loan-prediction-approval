@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-import numpy as np
 from sklearn.metrics import (
     ConfusionMatrixDisplay,
     accuracy_score,
@@ -33,9 +32,9 @@ def evaluate_model(model, X_test, y_test):
     mlflow.log_metric("test_tp", int(tp))
 
     fig, ax = plt.subplots(figsize=(5, 4))
-    ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["Rejected", "Approved"]).plot(
-        ax=ax, colorbar=False
-    )
+    ConfusionMatrixDisplay(
+        confusion_matrix=cm, display_labels=["Rejected", "Approved"]
+    ).plot(ax=ax, colorbar=False)
     ax.set_title("Confusion Matrix")
     fig.tight_layout()
     mlflow.log_figure(fig, "confusion_matrix.png")

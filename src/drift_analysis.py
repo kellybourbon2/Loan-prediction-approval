@@ -167,8 +167,9 @@ def main() -> None:
         "--window", type=int, default=500, help="Size of each comparison window"
     )
     parser.add_argument(
-        "--fail-on-drift", action="store_true",
-        help="Exit with code 1 if drift is detected (for CI use)"
+        "--fail-on-drift",
+        action="store_true",
+        help="Exit with code 1 if drift is detected (for CI use)",
     )
     args = parser.parse_args()
 

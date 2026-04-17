@@ -21,12 +21,20 @@ sys.path.insert(0, str(ROOT_DIR / "src"))
 from config import MLFLOW_TRACKING_URI  # noqa: E402
 from model.registry import load_champion_model, load_preprocessor_from_registry  # noqa: E402
 from api.schemas import (  # noqa: E402
-    LoanApplication, PredictionResponse, BatchPredictionResponse, ExplainResponse,
+    LoanApplication,
+    PredictionResponse,
+    BatchPredictionResponse,
+    ExplainResponse,
 )
 from api.metrics import (  # noqa: E402
-    PREDICTION_COUNTER, PREDICTION_ERRORS, PROBABILITY_HISTOGRAM,
-    APPROVAL_RATE_GAUGE, INCOME_HISTOGRAM, LOAN_AMOUNT_HISTOGRAM,
-    LTI_HISTOGRAM, BATCH_SIZE_HISTOGRAM,
+    PREDICTION_COUNTER,
+    PREDICTION_ERRORS,
+    PROBABILITY_HISTOGRAM,
+    APPROVAL_RATE_GAUGE,
+    INCOME_HISTOGRAM,
+    LOAN_AMOUNT_HISTOGRAM,
+    LTI_HISTOGRAM,
+    BATCH_SIZE_HISTOGRAM,
 )
 from api.logger import log_prediction  # noqa: E402
 
@@ -127,7 +135,9 @@ def predict_batch(requests: list[LoanApplication]):
     if not requests:
         raise HTTPException(status_code=422, detail="Request list cannot be empty.")
     if len(requests) > _MAX_BATCH:
-        raise HTTPException(status_code=422, detail=f"Batch size exceeds maximum of {_MAX_BATCH}.")
+        raise HTTPException(
+            status_code=422, detail=f"Batch size exceeds maximum of {_MAX_BATCH}."
+        )
     try:
         predictions = [_run_prediction(r) for r in requests]
     except Exception as e:
@@ -166,6 +176,7 @@ def _sigmoid(x: float) -> float:
 def _base_model(model):
     """Unwrap CalibratedClassifierCV to get the underlying estimator."""
     from sklearn.calibration import CalibratedClassifierCV
+
     if isinstance(model, CalibratedClassifierCV):
         return model.calibrated_classifiers_[0].estimator
     return model
@@ -177,6 +188,7 @@ def _shap_contributions(preprocessor, model, X):
 
     if model_type == "XGBClassifier":
         import xgboost as xgb
+
         dmat = xgb.DMatrix(X)
         contribs = model.get_booster().predict(dmat, pred_contribs=True)
         # shape: (1, n_features+1) — last col is bias/base in log-odds
@@ -184,6 +196,7 @@ def _shap_contributions(preprocessor, model, X):
         base = float(_sigmoid(contribs[0, -1]))
     elif model_type == "CatBoostClassifier":
         from catboost import Pool
+
         pool = Pool(X)
         contribs = model.get_feature_importance(type="ShapValues", data=pool)
         sv_raw = contribs[0, :-1]
@@ -226,7 +239,9 @@ def explain(request: LoanApplication):
         )
     except Exception as e:
         logger.exception("Explain error: %s", e)
-        raise HTTPException(status_code=500, detail="Internal explanation error.") from e
+        raise HTTPException(
+            status_code=500, detail="Internal explanation error."
+        ) from e
 
     return ExplainResponse(
         base_value=round(base, 4),

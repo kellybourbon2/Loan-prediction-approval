@@ -57,7 +57,9 @@ if __name__ == "__main__":
         best_model = train_model(best_model, X_train, y_train)
 
         # Calibrate probabilities on the calibration split (never seen during training)
-        calibrated_model = CalibratedClassifierCV(best_model, method="isotonic", cv="prefit")
+        calibrated_model = CalibratedClassifierCV(
+            best_model, method="isotonic", cv="prefit"
+        )
         calibrated_model.fit(X_cal, y_cal)
         mlflow.log_param("calibration_method", "isotonic")
 
