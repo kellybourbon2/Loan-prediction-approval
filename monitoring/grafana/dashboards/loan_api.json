@@ -108,6 +108,105 @@
           }
         }
       }
+    },
+
+    {
+      "id": 7,
+      "title": "Rolling Approval Rate (last 100 predictions)",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "expr": "loan_approval_rate * 100",
+          "legendFormat": "Approval rate"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "steps": [
+              { "color": "red",    "value": 0  },
+              { "color": "yellow", "value": 30 },
+              { "color": "green",  "value": 60 }
+            ]
+          }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+
+    {
+      "id": 8,
+      "title": "Income Distribution (p50 / p90) — Data Drift",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 18, "x": 6, "y": 24 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, rate(loan_request_income_bucket[5m]))",
+          "legendFormat": "p50 income"
+        },
+        {
+          "expr": "histogram_quantile(0.9, rate(loan_request_income_bucket[5m]))",
+          "legendFormat": "p90 income"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "currencyUSD" } }
+    },
+
+    {
+      "id": 9,
+      "title": "Loan Amount Distribution (p50 / p90) — Data Drift",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, rate(loan_request_amount_bucket[5m]))",
+          "legendFormat": "p50 amount"
+        },
+        {
+          "expr": "histogram_quantile(0.9, rate(loan_request_amount_bucket[5m]))",
+          "legendFormat": "p90 amount"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "currencyUSD" } }
+    },
+
+    {
+      "id": 10,
+      "title": "LTI Ratio Distribution (p50 / p90) — Data Drift",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, rate(loan_request_lti_ratio_bucket[5m]))",
+          "legendFormat": "p50 LTI"
+        },
+        {
+          "expr": "histogram_quantile(0.9, rate(loan_request_lti_ratio_bucket[5m]))",
+          "legendFormat": "p90 LTI"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } }
+    },
+
+    {
+      "id": 11,
+      "title": "Batch Request Size",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, rate(loan_batch_size_bucket[5m]))",
+          "legendFormat": "p50 batch size"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(loan_batch_size_bucket[5m]))",
+          "legendFormat": "p95 batch size"
+        }
+      ]
     }
   ]
 }

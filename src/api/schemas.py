@@ -44,6 +44,14 @@ class PredictionResponse(BaseModel):
     probability: float
 
 
+class BatchPredictionResponse(BaseModel):
+    predictions: list[PredictionResponse]
+    total: int
+    approved_count: int
+    rejected_count: int
+    approval_rate: float
+
+
 class FeatureContribution(BaseModel):
     feature: str
     label: str

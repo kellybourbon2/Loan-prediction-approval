@@ -16,8 +16,14 @@ sys.path.insert(0, str(ROOT_DIR / "src"))
 
 from config import MLFLOW_TRACKING_URI  # noqa: E402
 from model.registry import load_champion_model, load_preprocessor_from_registry  # noqa: E402
-from api.schemas import LoanApplication, PredictionResponse, ExplainResponse  # noqa: E402
-from api.metrics import PREDICTION_COUNTER, PREDICTION_ERRORS, PROBABILITY_HISTOGRAM  # noqa: E402
+from api.schemas import (  # noqa: E402
+    LoanApplication, PredictionResponse, BatchPredictionResponse, ExplainResponse,
+)
+from api.metrics import (  # noqa: E402
+    PREDICTION_COUNTER, PREDICTION_ERRORS, PROBABILITY_HISTOGRAM,
+    APPROVAL_RATE_GAUGE, INCOME_HISTOGRAM, LOAN_AMOUNT_HISTOGRAM,
+    LTI_HISTOGRAM, BATCH_SIZE_HISTOGRAM,
+)
 from api.logger import log_prediction  # noqa: E402
 
 
@@ -60,34 +66,68 @@ def health():
     return {"status": "ok"}
 
 
+_approval_window: list[int] = []
+_WINDOW_SIZE = 100
+
+
+def _run_prediction(request: LoanApplication) -> PredictionResponse:
+    """Core prediction logic — shared by single and batch endpoints."""
+    data = request.model_dump()
+    df = pd.DataFrame([data])
+    X = app.state.preprocessor.inference_transform(df)
+    proba_default = float(app.state.model.predict_proba(X)[0][1])
+    probability = round(1.0 - proba_default, 4)
+    prediction = int(probability >= 0.5)
+
+    # Prometheus metrics
+    PREDICTION_COUNTER.labels(result="approved" if prediction else "rejected").inc()
+    PROBABILITY_HISTOGRAM.observe(probability)
+    INCOME_HISTOGRAM.observe(data["person_income"])
+    LOAN_AMOUNT_HISTOGRAM.observe(data["loan_amnt"])
+    LTI_HISTOGRAM.observe(data["loan_percent_income"])
+
+    # Rolling approval rate
+    _approval_window.append(prediction)
+    if len(_approval_window) > _WINDOW_SIZE:
+        _approval_window.pop(0)
+    APPROVAL_RATE_GAUGE.set(sum(_approval_window) / len(_approval_window))
+
+    log_prediction(inputs=data, prediction=prediction, probability=probability)
+
+    return PredictionResponse(
+        loan_status=prediction, approved=bool(prediction), probability=probability
+    )
+
+
 @app.post("/predict", response_model=PredictionResponse)
 def predict(request: LoanApplication):
-    """Predict loan approval for a given application."""
+    """Predict loan approval for a single application."""
     try:
-        df = pd.DataFrame([request.model_dump()])
-        X = app.state.preprocessor.inference_transform(df)
-        proba_default = float(app.state.model.predict_proba(X)[0][1])
-        probability = round(
-            1.0 - proba_default, 4
-        )  # probability of approval (no default)
-        prediction = int(probability >= 0.5)
+        return _run_prediction(request)
     except Exception as e:
         PREDICTION_ERRORS.inc()
         raise HTTPException(status_code=500, detail=str(e)) from e
 
-    # Update Prometheus metrics
-    PREDICTION_COUNTER.labels(result="approved" if prediction else "rejected").inc()
-    PROBABILITY_HISTOGRAM.observe(probability)
 
-    # Structured log for drift analysis
-    log_prediction(
-        inputs=request.model_dump(), prediction=prediction, probability=probability
-    )
+@app.post("/predict/batch", response_model=BatchPredictionResponse)
+def predict_batch(requests: list[LoanApplication]):
+    """Predict loan approval for multiple applications in one request."""
+    if not requests:
+        raise HTTPException(status_code=422, detail="Request list cannot be empty.")
+    try:
+        predictions = [_run_prediction(r) for r in requests]
+    except Exception as e:
+        PREDICTION_ERRORS.inc()
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
-    return PredictionResponse(
-        loan_status=prediction,
-        approved=bool(prediction),
-        probability=probability,
+    BATCH_SIZE_HISTOGRAM.observe(len(predictions))
+    approved = sum(p.approved for p in predictions)
+    return BatchPredictionResponse(
+        predictions=predictions,
+        total=len(predictions),
+        approved_count=approved,
+        rejected_count=len(predictions) - approved,
+        approval_rate=round(approved / len(predictions), 4),
     )
 
 
@@ -108,7 +148,16 @@ def _sigmoid(x: float) -> float:
     return 1.0 / (1.0 + np.exp(-x))
 
 
+def _base_model(model):
+    """Unwrap CalibratedClassifierCV to get the underlying estimator."""
+    from sklearn.calibration import CalibratedClassifierCV
+    if isinstance(model, CalibratedClassifierCV):
+        return model.calibrated_classifiers_[0].estimator
+    return model
+
+
 def _shap_contributions(preprocessor, model, X):
+    model = _base_model(model)
     model_type = type(model).__name__
 
     if model_type == "XGBClassifier":

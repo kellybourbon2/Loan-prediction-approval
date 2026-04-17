@@ -2,6 +2,8 @@ import os
 
 import joblib
 from hyperopt import Trials, fmin, space_eval, tpe
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.model_selection import train_test_split
 
 import mlflow
 from config import (
@@ -49,16 +51,24 @@ if __name__ == "__main__":
         best_model = build_model(best_params)
         best_model = train_model(best_model, X_train, y_train)
 
-        # Evaluate
-        acc, f1, recall, precision = evaluate_model(best_model, X_test, y_test)
+        # Calibrate probabilities on a held-out calibration split
+        X_cal, X_eval, y_cal, y_eval = train_test_split(
+            X_test, y_test, test_size=0.5, random_state=42
+        )
+        calibrated_model = CalibratedClassifierCV(best_model, method="isotonic", cv="prefit")
+        calibrated_model.fit(X_cal, y_cal)
+        mlflow.log_param("calibration_method", "isotonic")
+
+        # Evaluate on the held-out eval split (not the calibration set)
+        acc, f1, recall, precision = evaluate_model(calibrated_model, X_eval, y_eval)
 
         # Store the full preprocessor as an artifact (scaler + encoder + ordinal encoder)
         os.makedirs("artifacts", exist_ok=True)
         preprocessor_path = "artifacts/preprocessor.joblib"
         joblib.dump(preprocessor, preprocessor_path)
 
-        # Log model + preprocessor in the same artifact folder
-        mlflow.sklearn.log_model(best_model, artifact_path="model")
+        # Log calibrated model + preprocessor in the same artifact folder
+        mlflow.sklearn.log_model(calibrated_model, artifact_path="model")
         mlflow.log_artifact(preprocessor_path, artifact_path="model")
 
         run_id = run.info.run_id
