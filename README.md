@@ -1,237 +1,144 @@
 # Loan Prediction Approval — MLOps Project
 
-> ENSAE Paris — *Mise en production* course | Parcours MLOps
+> ENSAE Paris — *Mise en production* course | Branch: `ossama`
 
-A full MLOps pipeline for predicting loan approval, covering data processing, model training with hyperparameter tuning, MLflow experiment tracking, FastAPI deployment, Kubernetes orchestration, GitOps automation, Grafana/Prometheus monitoring, XAI explanations, and automated drift-triggered retraining.
-
----
-
-## Live URLs (SSPCloud — namespace `user-oualy`)
-
-| Service | URL |
-|---------|-----|
-| **Web UI** | https://loan-api-oualy.user.lab.sspcloud.fr |
-| **Swagger UI** | https://loan-api-oualy.user.lab.sspcloud.fr/docs |
-| **Prometheus metrics** | https://loan-api-oualy.user.lab.sspcloud.fr/metrics |
-| **Grafana dashboard** | https://grafana-loan-oualy.user.lab.sspcloud.fr (admin/admin) |
-| **MLflow UI** | https://mlflow-oualy.user.lab.sspcloud.fr |
+End-to-end MLOps pipeline for predicting loan approval: data processing, hyperparameter tuning across three model families, MLflow experiment tracking, FastAPI deployment, Kubernetes orchestration on SSPCloud, GitOps automation via ArgoCD, Prometheus/Grafana monitoring, SHAP explanations, and drift-triggered automatic retraining.
 
 ---
 
-## Project Checklist
+## Live URLs (SSPCloud)
 
-| Step | Status |
-|------|--------|
-| Development best practices (pre-commit, linting, tests) | ✅ |
-| ML model for a business need (loan approval) | ✅ |
-| Cross-validation + hyperparameter fine-tuning (XGBoost, CatBoost, RandomForest) | ✅ |
-| Probability calibration (isotonic regression) | ✅ |
-| Proper train / calibration / eval holdout split | ✅ |
-| Confusion matrix logged as MLflow artifact | ✅ |
-| Reproducible fine-tuning via MLflow | ✅ |
-| FastAPI to expose the best model | ✅ |
-| Batch prediction endpoint | ✅ |
-| XAI — SHAP feature explanations | ✅ |
-| Dockerfile + Docker Hub CI/CD | ✅ |
-| Deploy on SSP Cloud (Kubernetes + ArgoCD) | ✅ |
-| GitOps continuous deployment | ✅ |
-| Monitoring (Prometheus + Grafana) | ✅ |
-| Grafana alerting (errors, latency, approval rate) | ✅ |
-| Drift detection → automatic retraining | ✅ |
-| Model regression guard before promotion | ✅ |
-| Unit tests — preprocessing + API endpoints (14 tests) | ✅ |
-| Integration tests — real HTTP stack (8 tests) | ✅ |
-| Post-deploy healthcheck + automatic rollback | ✅ |
-| API security hardening (thread safety, error leakage, batch limit) | ✅ |
+Replace `<username>` with your SSPCloud username everywhere below.
+
+| Service | URL pattern |
+|---------|-------------|
+| **Web UI** | `https://loan-api-<username>.user.lab.sspcloud.fr` |
+| **Swagger UI** | `https://loan-api-<username>.user.lab.sspcloud.fr/docs` |
+| **Prometheus metrics** | `https://loan-api-<username>.user.lab.sspcloud.fr/metrics` |
+| **Grafana dashboard** | `https://grafana-loan-<username>.user.lab.sspcloud.fr` (admin / admin) |
+| **MLflow UI** | `https://mlflow-<username>.user.lab.sspcloud.fr` |
+
+Your username is the prefix of your SSPCloud namespace (e.g. namespace `user-johndoe` → username `johndoe`).
 
 ---
 
-## Repository Structure
+## Reproduce from scratch
 
-```
-├── src/
-│   ├── api/
-│   │   ├── app.py            # FastAPI app (predict, batch, explain endpoints)
-│   │   ├── schemas.py        # Pydantic schemas
-│   │   ├── metrics.py        # Prometheus metrics
-│   │   └── logger.py         # Structured prediction logger (+ S3 sync)
-│   ├── model/
-│   │   ├── train.py          # Model training
-│   │   ├── tune.py           # Hyperopt tuning
-│   │   ├── evaluate.py       # Metrics + confusion matrix evaluation
-│   │   ├── registry.py       # MLflow registry + champion promotion
-│   │   └── search_space.py   # Hyperopt search space (XGBoost, CatBoost, RF)
-│   ├── data_processing/
-│   │   ├── preprocessing.py  # DataPreprocessor (clean, encode, scale)
-│   │   └── data_load.py      # S3 data loading
-│   ├── main.py               # Full training entrypoint
-│   └── drift_analysis.py     # Feature & prediction drift detection
-├── .github/workflows/
-│   ├── ci.yml                # Lint + unit tests + integration tests on every push
-│   ├── cd.yml                # Build Docker image → push → healthcheck → rollback
-│   ├── retrain.yml           # Manual / scheduled retraining
-│   └── drift_check.yml       # Daily drift check → triggers retrain if needed
-├── k8s/                      # Kubernetes manifests (ArgoCD GitOps)
-├── monitoring/
-│   ├── prometheus.yml        # Scrape config
-│   └── grafana/
-│       ├── dashboards/       # Dashboard JSON (auto-provisioned)
-│       └── provisioning/
-│           ├── datasources/  # Prometheus datasource
-│           ├── dashboards/   # Dashboard provisioning
-│           └── alerting/     # Alert rules + contact points
-├── unit_tests/
-│   ├── test_preprocessing.py # DataPreprocessor tests
-│   ├── test_api.py           # API endpoint tests (predict, batch, explain) — mocked
-│   └── test_integration.py   # Integration tests — real HTTP stack against deployed API
-├── Dockerfile
-├── docker-compose.yml        # Local stack (API + Prometheus + Grafana)
-├── pyproject.toml
-└── config.py
-```
+This section is for anyone who wants to clone the repo and get the exact same results.
+
+### Prerequisites
+
+| Tool | Version | Install |
+|------|---------|---------|
+| Python | **3.13** | https://www.python.org/downloads/ |
+| uv | latest | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
+| Docker + Docker Compose | any recent | https://docs.docker.com/get-docker/ |
+| git | any | — |
+
+Optional (Kubernetes deployment only):
+- `kubectl` configured against an SSPCloud cluster
+- Access to a MinIO S3 bucket on `minio.lab.sspcloud.fr`
 
 ---
 
-## 1 — Environment Setup
-
-**Requirements:** Python ≥ 3.13, [uv](https://docs.astral.sh/uv/)
+### Step 1 — Clone and install
 
 ```bash
 git clone https://github.com/kellybourbon2/Loan-prediction-approval.git
 cd Loan-prediction-approval
 git checkout ossama
-uv sync
+uv sync                        # installs exact locked dependencies (uv.lock)
+uv run pre-commit install      # enables ruff lint+format on every commit
 ```
 
-### SSPCloud credentials
+`uv sync` reads `uv.lock` — every dependency is pinned, so you get the identical environment.
+
+---
+
+### Step 2 — Dataset
+
+The model trains on the **Kaggle Playground Series S4E10 — Loan Approval Prediction** dataset.
+
+1. Download `train.csv` from https://www.kaggle.com/competitions/playground-series-s4e10/data
+2. Upload it to your S3 bucket at the root: `s3://<your-bucket>/train.csv`
+
+The data loader reads it directly from S3 at training time — no local copy needed.
+
+---
+
+### Step 3 — Environment variables
 
 ```bash
 cp .env.example .env
-# Fill in your values
 ```
+
+Edit `.env` with your credentials:
 
 ```env
 AWS_ACCESS_KEY_ID=<your_key>
 AWS_SECRET_ACCESS_KEY=<your_secret>
-AWS_SESSION_TOKEN=<your_token>
+AWS_SESSION_TOKEN=<your_token>         # leave empty if not using SSPCloud temp tokens
 AWS_S3_ENDPOINT=minio.lab.sspcloud.fr
-AWS_BUCKET_NAME=<your_bucket>
+AWS_BUCKET_NAME=<your_bucket>          # the bucket where train.csv is stored
 ```
 
-The dataset (Kaggle Playground S4E10) must be uploaded to your bucket as `train.csv`.
+These variables are loaded automatically by `data_load.py` via `python-dotenv`.
 
 ---
 
-## 2 — Development Best Practices
-
-```bash
-# Linting + formatting (also runs automatically on every git commit via pre-commit)
-uv run ruff check src/ --fix
-uv run ruff format src/
-
-# Unit tests — mocked (14 tests: preprocessing + API endpoints)
-uv run pytest unit_tests/ --ignore=unit_tests/test_integration.py -v
-
-# Integration tests — requires a running API (local or deployed)
-INTEGRATION_API_URL=https://loan-api-oualy.user.lab.sspcloud.fr \
-  uv run pytest unit_tests/test_integration.py -v
-```
-
-### Pre-commit hooks
-
-Ruff (lint + format) runs automatically before every `git commit`. To install:
-
-```bash
-uv run pre-commit install
-```
-
-If ruff reformats a file, the commit is blocked — simply re-add the file and commit again.
-
-### Test coverage
-
-| Suite | Tests | What is covered |
-|-------|-------|-----------------|
-| `test_preprocessing.py` | 6 | `DataPreprocessor`: clean, feature engineering, split, encoding |
-| `test_api.py` | 14 | `/predict`, `/predict/batch`, `/explain` with mocked model |
-| `test_integration.py` | 8 | Real HTTP calls to the deployed API — health, predict, batch, explain, metrics |
-
----
-
-## 3 — Model Training (MLflow)
+### Step 4 — Train the model
 
 ```bash
 uv run python src/main.py
 ```
 
-### Pipeline
+What happens:
 
-1. Load `train.csv` from SSPCloud (MinIO)
-2. Preprocess (`DataPreprocessor`: clean → feature engineering → scale → encode)
-3. **3-way split:** training set / calibration set / evaluation set
-   - The model never sees the calibration or evaluation sets during training
-   - Calibration and evaluation use disjoint halves of the original holdout
-4. 5-fold cross-validation + hyperparameter tuning with **Hyperopt** (`MAX_EVALS=10`)
-   - Search space covers **XGBoost**, **CatBoost**, and **RandomForest** — best model wins
-5. Train best model on the full training set
-6. **Calibrate probabilities** with `CalibratedClassifierCV(method='isotonic', cv='prefit')` on the calibration split — ensures `predict_proba` outputs are well-calibrated
-7. Evaluate on the held-out eval split (never seen during training or calibration)
-8. Log to **MLflow**: metrics, params, **confusion matrix** (PNG artifact), calibrated model
-9. Register in MLflow Model Registry as `@challenger`
-10. **Promote to `@champion`** only if:
-    - F1 ≥ `F1_PROMOTION_THRESHOLD` (0.5)
-    - F1 > current champion's F1 (regression guard — new model must be strictly better)
+| Step | Detail |
+|------|--------|
+| Load | `train.csv` downloaded from S3 |
+| Preprocess | `DataPreprocessor`: drop unused columns, bin age, binary-encode credit default, StandardScaler + OneHotEncoder |
+| Split | **3-way**: 80% training / 10% calibration / 10% evaluation — no leakage between the three |
+| Tune | Hyperopt TPE search (`MAX_EVALS=10`) over **XGBoost**, **CatBoost**, **RandomForest** simultaneously — best model wins |
+| Train | Best model retrained on full training set |
+| Calibrate | `CalibratedClassifierCV(method='isotonic', cv='prefit')` fitted on the calibration split — well-calibrated probabilities |
+| Evaluate | Accuracy, F1, Recall, Precision + confusion matrix on the eval split (never seen before) |
+| Log | All metrics, params, confusion matrix PNG artifact → MLflow experiment `Loan Prediction Approval Experiments` |
+| Register | Model registered in MLflow Registry as `@challenger` |
+| Promote | Promoted to `@champion` **only if** F1 ≥ 0.5 **and** F1 > current champion (regression guard) |
+
+Expected results on the eval split (may vary slightly due to Hyperopt stochasticity):
+
+| Metric | Typical value |
+|--------|--------------|
+| F1 | ~0.88 |
+| Accuracy | ~0.93 |
+| Recall | ~0.87 |
+| Precision | ~0.89 |
+
+To inspect runs after training:
 
 ```bash
-# Inspect experiments
 uv run mlflow ui --backend-store-uri sqlite:///mlflow.db
-# → http://127.0.0.1:5000
+# → open http://127.0.0.1:5000
 ```
-
-### Why all three models?
-
-| Model | Strength |
-|-------|----------|
-| **XGBoost** | Best performance on tabular data in most benchmarks |
-| **CatBoost** | Handles categorical features natively, less tuning needed |
-| **RandomForest** | Robust baseline, easy to interpret |
-
-Hyperopt explores all three automatically and picks the best configuration.
 
 ---
 
-## 4 — FastAPI
+### Step 5 — Run the API locally
+
+The API loads the `@champion` model from MLflow at startup.
 
 ```bash
 uv run uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
+# → http://localhost:8000
+# → http://localhost:8000/docs  (Swagger UI)
 ```
 
-### Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/` | Web UI (loan assessment form) |
-| `GET` | `/health` | Health check — returns 503 if model not loaded |
-| `POST` | `/predict` | Single loan approval prediction |
-| `POST` | `/predict/batch` | Batch prediction (list of applications, max 500) |
-| `POST` | `/explain` | SHAP feature contributions for one application |
-| `GET` | `/metrics` | Prometheus metrics |
-| `GET` | `/docs` | Swagger UI |
-
-### Security hardening
-
-Four issues were identified and fixed:
-
-| Issue | Fix |
-|-------|-----|
-| `/health` returned 200 even before the model finished loading | Returns **503** until both model and preprocessor are in `app.state` |
-| Rolling approval-rate window was not thread-safe | Protected with `threading.Lock()` |
-| `HTTPException` exposed `str(e)` (internal stacktrace) to clients | Errors are **logged server-side**; clients receive a generic message |
-| `/predict/batch` accepted unlimited list sizes (OOM risk) | Hard limit of **500 items** per request |
-
-### Single prediction
+Test it:
 
 ```bash
-curl -X POST https://loan-api-oualy.user.lab.sspcloud.fr/predict \
+curl -X POST http://localhost:8000/predict \
   -H "Content-Type: application/json" \
   -d '{
     "person_age": 30,
@@ -247,163 +154,202 @@ curl -X POST https://loan-api-oualy.user.lab.sspcloud.fr/predict \
 # → {"loan_status": 1, "approved": true, "probability": 0.8742}
 ```
 
-### Batch prediction
-
-```bash
-curl -X POST https://loan-api-oualy.user.lab.sspcloud.fr/predict/batch \
-  -H "Content-Type: application/json" \
-  -d '[{...}, {...}, {...}]'
-# → {"predictions": [...], "total": 3, "approved_count": 2, "rejected_count": 1, "approval_rate": 0.667}
-```
-
-### XAI — SHAP explanation
-
-```bash
-curl -X POST https://loan-api-oualy.user.lab.sspcloud.fr/explain \
-  -H "Content-Type: application/json" \
-  -d '{...same payload as /predict...}'
-# → {
-#     "base_value": 0.62,
-#     "features": [
-#       {"feature": "loan_percent_income", "label": "Loan/Income Ratio", "shap": -0.183},
-#       {"feature": "person_income",       "label": "Annual Income",     "shap": +0.091},
-#       ...
-#     ]
-#   }
-```
-
-SHAP values are computed using native tree contributions (`pred_contribs=True` for XGBoost, `ShapValues` for CatBoost) — no external `shap` library required (incompatible with Python 3.13). Positive values push toward approval, negative toward rejection.
-
 ---
 
-## 5 — Docker
+### Step 6 — Run the full local stack (API + Prometheus + Grafana)
 
 ```bash
-# Full local stack (API + Prometheus + Grafana)
 docker compose up
 ```
 
-| Service | URL |
-|---------|-----|
-| API | http://localhost:8000 |
-| Prometheus | http://localhost:9090 |
-| Grafana | http://localhost:3000 (admin/admin) |
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| API | http://localhost:8000 | — |
+| Prometheus | http://localhost:9090 | — |
+| Grafana | http://localhost:3000 | admin / admin |
 
-The Docker image is automatically built and pushed to Docker Hub (`oualyoss/loan-api`) by the CD workflow on every push that modifies `src/`, `Dockerfile`, `pyproject.toml`, or `uv.lock`.
-
----
-
-## 6 — CI/CD Workflows
-
-| Workflow | Trigger | Action |
-|----------|---------|--------|
-| `ci.yml` | Every push | Ruff lint + unit tests → integration tests against deployed API |
-| `cd.yml` | Push on `src/**`, `Dockerfile`, `pyproject.toml` | Build Docker → push to Docker Hub → update `k8s/deployment.yaml` → **post-deploy healthcheck** → **auto-rollback** on failure |
-| `retrain.yml` | Manual / every Monday 2am UTC | Full retraining + MLflow registry update |
-| `drift_check.yml` | Daily 8am UTC | Download logs from S3 → drift analysis → trigger `retrain.yml` if drift detected |
-
-### Post-deploy healthcheck & automatic rollback
-
-After every deployment, the CD pipeline:
-
-1. Waits 60 seconds for ArgoCD to sync and the pod to become ready
-2. Calls `GET /health` on the live API
-3. **If the healthcheck passes** → deployment is confirmed
-4. **If the healthcheck fails** → a rollback commit is pushed automatically, restoring `k8s/deployment.yaml` to the previous image tag, which ArgoCD picks up and re-deploys
-
-This ensures a broken image can never stay live: the previous working version is always restored within minutes.
-
-### Integration tests in CI
-
-The `integration-test` job runs after unit tests and hits the live deployed API (configured via the `API_URL` repository variable in GitHub Actions). It covers:
-
-- `/health` returns 200
-- `/predict` returns a valid response and correct schema
-- `/predict` rejects invalid payloads with 422
-- `/predict` does not leak internal tracebacks on errors
-- `/predict/batch` returns correct counts and approval rate
-- `/predict/batch` rejects empty lists with 422
-- `/explain` returns feature contributions with correct structure
-- `/metrics` exposes `loan_predictions_total`
+The Grafana datasource and dashboards are provisioned automatically on first start.
 
 ---
 
-## 7 — Drift Detection & Automatic Retraining
-
-Prediction logs are written to `logs/predictions.jsonl` and synced to S3 every 100 predictions.
-
-The `drift_check.yml` workflow runs daily:
-1. Downloads logs from S3
-2. Runs `src/drift_analysis.py` (KS test + PSI for numerical features, distribution shift for categorical)
-3. If drift detected on any feature → triggers `retrain.yml` automatically
+### Step 7 — Run the tests
 
 ```bash
-# Run drift analysis manually
-uv run python src/drift_analysis.py --log-file logs/predictions.jsonl
+# Unit tests — mocked model, no network needed (28 tests)
+uv run pytest unit_tests/ --ignore=unit_tests/test_integration.py -v
 
-# Exit with code 1 if drift detected (used in CI)
-uv run python src/drift_analysis.py --fail-on-drift
+# Integration tests — requires a running API
+INTEGRATION_API_URL=http://localhost:8000 \
+  uv run pytest unit_tests/test_integration.py -v
+```
+
+| Suite | Tests | What is covered |
+|-------|-------|-----------------|
+| `test_preprocessing.py` | 6 | `DataPreprocessor`: clean, feature engineering, split, encoding |
+| `test_api.py` | 14 | `/predict`, `/predict/batch`, `/explain` — mocked model |
+| `test_integration.py` | 8 | Real HTTP calls — health, predict, batch, explain, metrics, no traceback leak |
+
+---
+
+## Repository structure
+
+```
+├── src/
+│   ├── api/
+│   │   ├── app.py            # FastAPI app (predict, batch, explain, health, metrics)
+│   │   ├── schemas.py        # Pydantic input/output schemas
+│   │   ├── metrics.py        # Prometheus metrics definitions
+│   │   └── logger.py         # Structured prediction logger → S3 sync
+│   ├── model/
+│   │   ├── train.py          # Model training wrapper
+│   │   ├── tune.py           # Hyperopt objective + model builder (with early stopping)
+│   │   ├── evaluate.py       # Metrics + confusion matrix → MLflow
+│   │   ├── registry.py       # MLflow registry: register, promote, load champion
+│   │   └── search_space.py   # Hyperopt search space (XGBoost, CatBoost, RF)
+│   ├── data_processing/
+│   │   ├── preprocessing.py  # DataPreprocessor (clean → engineer → scale → encode)
+│   │   └── data_load.py      # S3 data loading via s3fs
+│   ├── main.py               # Full training entrypoint
+│   └── drift_analysis.py     # KS test + PSI drift detection
+├── .github/workflows/
+│   ├── ci.yml                # Ruff + unit tests + integration tests
+│   ├── cd.yml                # Build Docker → push → update k8s manifest → healthcheck → rollback
+│   ├── retrain.yml           # Manual/scheduled retraining (every Monday 2am UTC)
+│   └── drift_check.yml       # Daily drift check → triggers retrain if drift detected
+├── k8s/                      # Kubernetes manifests (ArgoCD GitOps)
+├── monitoring/
+│   └── grafana/
+│       ├── dashboards/       # Dashboard JSON (auto-provisioned)
+│       └── provisioning/     # Datasources, dashboards, alerting rules
+├── unit_tests/
+├── Dockerfile
+├── docker-compose.yml
+├── pyproject.toml            # Python project + ruff config
+├── uv.lock                   # Pinned dependency lockfile
+└── config.py                 # All training constants (CV_FOLDS, MAX_EVALS, thresholds…)
 ```
 
 ---
 
-## 8 — Kubernetes Deployment (SSPCloud)
+## API reference
 
-### One-time setup
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/` or `/ui/` | Web UI — loan assessment form |
+| `GET` | `/health` | Returns 200 if model loaded, 503 otherwise |
+| `POST` | `/predict` | Single loan prediction |
+| `POST` | `/predict/batch` | Batch prediction (max 500 per request) |
+| `POST` | `/explain` | SHAP feature contributions for one application |
+| `GET` | `/metrics` | Prometheus metrics endpoint |
+| `GET` | `/docs` | Swagger UI |
+
+### SHAP explanations
+
+SHAP values are computed without the external `shap` library (incompatible with Python 3.13):
+- **XGBoost**: `get_booster().predict(dmat, pred_contribs=True)`
+- **CatBoost**: `get_feature_importance(type="ShapValues", data=pool)`
+- **RandomForest**: global feature importances weighted by prediction deviation
+
+Positive SHAP values push toward approval, negative toward rejection.
+
+---
+
+## CI/CD
+
+| Workflow | Trigger | What it does |
+|----------|---------|-------------|
+| `ci.yml` | Every push | Ruff lint + format check → unit tests → integration tests against `API_URL` |
+| `cd.yml` | Push touching `src/`, `Dockerfile`, `pyproject.toml`, `uv.lock` | Build Docker image → push to Docker Hub → update `k8s/deployment.yaml` image tag → wait 60s → GET `/health` → auto-rollback if 503 |
+| `retrain.yml` | Manual or every Monday 2am UTC | Full retraining + MLflow registry update |
+| `drift_check.yml` | Daily 8am UTC | Download `predictions.jsonl` from S3 → KS + PSI analysis → trigger `retrain.yml` if drift detected |
+
+### Required GitHub Actions configuration
+
+Go to **Settings → Secrets and variables → Actions** and add:
+
+| Name | Type | Value |
+|------|------|-------|
+| `DOCKERHUB_TOKEN` | Secret | Docker Hub access token |
+| `AWS_ACCESS_KEY_ID` | Secret | S3 credentials (for retrain + drift check) |
+| `AWS_SECRET_ACCESS_KEY` | Secret | — |
+| `AWS_SESSION_TOKEN` | Secret | — |
+| `AWS_S3_ENDPOINT` | Secret | e.g. `minio.lab.sspcloud.fr` |
+| `AWS_BUCKET_NAME` | Secret | — |
+| `GH_PAT` | Secret | (optional) GitHub PAT with `repo` scope — needed if `ossama` has branch protection rules |
+| `DOCKERHUB_USERNAME` | Variable | Docker Hub username |
+| `API_URL` | Variable | Deployed API base URL — enables integration tests and post-deploy healthcheck |
+
+---
+
+## Kubernetes deployment (SSPCloud)
+
+### One-time secrets setup
+
+Before applying, update `k8s/deployment.yaml` and `k8s/ingress.yaml`: replace every occurrence of `user-oualy` with your own namespace (`user-<username>`).
 
 ```bash
-# SSPCloud credentials
+# AWS / MinIO credentials used by the API at runtime
 kubectl create secret generic loan-api-secret \
   --from-literal=AWS_ACCESS_KEY_ID=<key> \
   --from-literal=AWS_SECRET_ACCESS_KEY=<secret> \
   --from-literal=AWS_SESSION_TOKEN=<token> \
   --from-literal=AWS_S3_ENDPOINT=https://minio.lab.sspcloud.fr \
-  --from-literal=AWS_BUCKET_NAME=oualy \
-  -n user-oualy
-
-# MLflow database
-kubectl create secret generic mlflow-db --from-file=mlflow.db=mlflow.db -n user-oualy
+  --from-literal=AWS_BUCKET_NAME=<bucket> \
+  -n user-<username>
 ```
 
 ### Deploy
 
 ```bash
-kubectl apply -f k8s/ --recursive -n user-oualy
+kubectl apply -f k8s/ --recursive -n user-<username>
 ```
 
-ArgoCD watches the `ossama` branch (`k8s/` path) and auto-syncs on every push.
+ArgoCD watches the `ossama` branch (`k8s/` path) and syncs automatically on every push.
+
+The API connects to the MLflow service inside the cluster (`http://mlflow:5000`) — no local SQLite copy needed. The MLflow service itself uses S3 (`s3://<bucket>/mlruns`) as artifact backend.
+
+### Architecture
+
+```
+GitHub push
+    │
+    ▼
+GitHub Actions CI  ──── lint + tests
+    │
+    ▼
+GitHub Actions CD  ──── build Docker image ──── push to Docker Hub
+    │                                                   │
+    │                                    update k8s/deployment.yaml
+    │                                                   │
+    ▼                                                   ▼
+ArgoCD (SSPCloud) ──────────────────── sync Kubernetes manifests
+    │
+    ▼
+Pod: loan-api ──── reads @champion model from ──── MLflow service (k8s)
+    │                                                   │
+    ├── POST /predict ──────────────────────────────────┤
+    ├── GET  /metrics ── Prometheus ── Grafana          │
+    └── logs/predictions.jsonl ── S3 sync ── drift_check.yml
+```
 
 ---
 
-## 9 — Monitoring
+## Monitoring
 
 ### Prometheus metrics
 
 | Metric | Type | Description |
 |--------|------|-------------|
-| `loan_predictions_total{result}` | Counter | Predictions by outcome (approved/rejected) |
+| `loan_predictions_total{result}` | Counter | Approved / rejected counts |
 | `loan_prediction_probability` | Histogram | Distribution of approval probabilities |
 | `loan_prediction_errors_total` | Counter | Prediction errors |
 | `loan_approval_rate` | Gauge | Rolling approval rate (last 100 predictions) |
-| `loan_request_income` | Histogram | Applicant income distribution (drift detection) |
-| `loan_request_amount` | Histogram | Loan amount distribution (drift detection) |
-| `loan_request_lti_ratio` | Histogram | Loan-to-income ratio distribution (drift detection) |
+| `loan_request_income` | Histogram | Applicant income (drift monitoring) |
+| `loan_request_amount` | Histogram | Loan amount (drift monitoring) |
+| `loan_request_lti_ratio` | Histogram | Loan-to-income ratio (drift monitoring) |
 | `loan_batch_size` | Histogram | Batch request sizes |
 
-### Grafana dashboard
-
-Dashboard **"Loan Approval API"** at https://grafana-loan-oualy.user.lab.sspcloud.fr:
-
-- Request rate, approval rate, predictions approved vs rejected
-- Prediction probability distribution (p50/p90/p99)
-- API latency (p50/p95), prediction errors
-- Rolling approval rate gauge
-- Income / loan amount / LTI ratio distributions (data drift monitoring)
-- Batch request sizes
-
-### Grafana alerting
-
-Three alert rules provisioned automatically:
+### Grafana alerts (auto-provisioned)
 
 | Alert | Condition | Severity |
 |-------|-----------|----------|
@@ -413,20 +359,44 @@ Three alert rules provisioned automatically:
 
 ---
 
-## Configuration
+## Configuration reference
+
+All constants are in `config.py`:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CV_FOLDS` | 5 | Cross-validation folds |
-| `MAX_EVALS` | 10 | Hyperopt iterations |
-| `F1_PROMOTION_THRESHOLD` | 0.5 | Min F1 to promote to @champion |
-| `MLFLOW_MODEL_NAME` | `loan-approval-model` | Registry model name |
-| `MLFLOW_TRACKING_URI` | `sqlite:///mlflow.db` | Override via env var |
+| `CV_FOLDS` | 5 | Stratified K-Fold folds during hyperparameter search |
+| `MAX_EVALS` | 10 | Hyperopt iterations (increase for better results, slower training) |
+| `RANDOM_STATE` | 42 | Seed for all random operations — guarantees reproducibility |
+| `TEST_SIZE` | 0.2 | Holdout fraction (split into calibration + eval) |
+| `F1_PROMOTION_THRESHOLD` | 0.5 | Minimum F1 required to promote a challenger to @champion |
+| `MLFLOW_TRACKING_URI` | `sqlite:///mlflow.db` | Overridden by env var in Kubernetes (`http://mlflow:5000`) |
+| `MLFLOW_MODEL_NAME` | `loan-approval-model` | Model name in the MLflow Registry |
 
-### GitHub Actions variables
+---
 
-| Variable | Where to set | Description |
-|----------|-------------|-------------|
-| `DOCKERHUB_USERNAME` | Settings → Variables → Actions | Docker Hub username |
-| `API_URL` | Settings → Variables → Actions | Deployed API base URL — enables integration tests and post-deploy healthcheck |
-| `DOCKERHUB_TOKEN` | Settings → **Secrets** → Actions | Docker Hub access token |
+## Project checklist
+
+| Feature | Status |
+|---------|--------|
+| Development best practices (pre-commit, ruff, tests) | ✅ |
+| 3-way train / calibration / eval split (no leakage) | ✅ |
+| Hyperparameter tuning — XGBoost, CatBoost, RandomForest | ✅ |
+| Early stopping on boosted models (CV) | ✅ |
+| Probability calibration (isotonic regression) | ✅ |
+| Champion/challenger registry with regression guard | ✅ |
+| Confusion matrix logged as MLflow artifact | ✅ |
+| FastAPI — single, batch (max 500), explain, health | ✅ |
+| SHAP explanations (no external shap library) | ✅ |
+| Thread-safe metrics, no traceback leakage | ✅ |
+| Prediction logger → S3 sync (every 10 predictions + 60s timer) | ✅ |
+| Dockerfile + Docker Hub CI/CD | ✅ |
+| Kubernetes deployment (SSPCloud + ArgoCD GitOps) | ✅ |
+| MLflow as Kubernetes service (no ephemeral SQLite) | ✅ |
+| Post-deploy healthcheck + automatic rollback | ✅ |
+| Prometheus + Grafana monitoring (8 metrics, 6 panels) | ✅ |
+| Grafana alerting (3 rules) | ✅ |
+| Daily drift detection (KS + PSI) → auto-retraining | ✅ |
+| Guard: drift check skipped if no logs yet | ✅ |
+| Unit tests (28 total) | ✅ |
+| Integration tests (real HTTP) | ✅ |
