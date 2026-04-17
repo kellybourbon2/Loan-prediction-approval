@@ -1,4 +1,6 @@
+import logging
 import sys
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -9,6 +11,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from prometheus_fastapi_instrumentator import Instrumentator
+
+logger = logging.getLogger(__name__)
 
 ROOT_DIR = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(ROOT_DIR))
@@ -62,11 +66,14 @@ def root():
 
 @app.get("/health")
 def health():
-    """Health check endpoint."""
+    """Health check — verifies model and preprocessor are loaded."""
+    if not hasattr(app.state, "model") or not hasattr(app.state, "preprocessor"):
+        raise HTTPException(status_code=503, detail="Model not loaded yet.")
     return {"status": "ok"}
 
 
 _approval_window: list[int] = []
+_approval_lock = threading.Lock()
 _WINDOW_SIZE = 100
 
 
@@ -86,11 +93,12 @@ def _run_prediction(request: LoanApplication) -> PredictionResponse:
     LOAN_AMOUNT_HISTOGRAM.observe(data["loan_amnt"])
     LTI_HISTOGRAM.observe(data["loan_percent_income"])
 
-    # Rolling approval rate
-    _approval_window.append(prediction)
-    if len(_approval_window) > _WINDOW_SIZE:
-        _approval_window.pop(0)
-    APPROVAL_RATE_GAUGE.set(sum(_approval_window) / len(_approval_window))
+    # Rolling approval rate — thread-safe
+    with _approval_lock:
+        _approval_window.append(prediction)
+        if len(_approval_window) > _WINDOW_SIZE:
+            _approval_window.pop(0)
+        APPROVAL_RATE_GAUGE.set(sum(_approval_window) / len(_approval_window))
 
     log_prediction(inputs=data, prediction=prediction, probability=probability)
 
@@ -106,7 +114,11 @@ def predict(request: LoanApplication):
         return _run_prediction(request)
     except Exception as e:
         PREDICTION_ERRORS.inc()
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.exception("Prediction error: %s", e)
+        raise HTTPException(status_code=500, detail="Internal prediction error.") from e
+
+
+_MAX_BATCH = 500
 
 
 @app.post("/predict/batch", response_model=BatchPredictionResponse)
@@ -114,11 +126,14 @@ def predict_batch(requests: list[LoanApplication]):
     """Predict loan approval for multiple applications in one request."""
     if not requests:
         raise HTTPException(status_code=422, detail="Request list cannot be empty.")
+    if len(requests) > _MAX_BATCH:
+        raise HTTPException(status_code=422, detail=f"Batch size exceeds maximum of {_MAX_BATCH}.")
     try:
         predictions = [_run_prediction(r) for r in requests]
     except Exception as e:
         PREDICTION_ERRORS.inc()
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.exception("Batch prediction error: %s", e)
+        raise HTTPException(status_code=500, detail="Internal prediction error.") from e
 
     BATCH_SIZE_HISTOGRAM.observe(len(predictions))
     approved = sum(p.approved for p in predictions)
@@ -210,7 +225,8 @@ def explain(request: LoanApplication):
             app.state.preprocessor, app.state.model, X
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        logger.exception("Explain error: %s", e)
+        raise HTTPException(status_code=500, detail="Internal explanation error.") from e
 
     return ExplainResponse(
         base_value=round(base, 4),
