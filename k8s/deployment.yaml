@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: loan-api
-          image: oualyoss/loan-api:1f2de52e0bbec437686295a4fdb3079ea4b3bbcb
+          image: oualyoss/loan-api:3dd570b87de9b33323e227cd9a897f080282916b
           imagePullPolicy: Always
           command: ["/bin/sh", "-c"]
           args:
