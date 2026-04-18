@@ -210,3 +210,7 @@ __marimo__/
 # mlruns
 /mlruns/
 mlflow.db
+# prediction logs (drift analysis)
+logs/
+
+.claude/k8s/secret.yaml

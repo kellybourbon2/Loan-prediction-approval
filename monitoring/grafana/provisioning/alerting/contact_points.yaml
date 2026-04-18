@@ -1,0 +1,12 @@
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: loan-api-alerts
+    receivers:
+      - uid: loan-api-webhook
+        type: webhook
+        settings:
+          url: ${ALERT_WEBHOOK_URL:-https://httpbin.org/post}
+          httpMethod: POST
+        disableResolveMessage: false

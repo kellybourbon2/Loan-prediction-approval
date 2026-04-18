@@ -1,0 +1,212 @@
+{
+  "title": "Loan Approval API",
+  "uid": "loan-api",
+  "schemaVersion": 36,
+  "version": 1,
+  "refresh": "15s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request Rate (req/s)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "rate(http_requests_total{handler=\"/predict\"}[1m])",
+          "legendFormat": "{{method}} {{status_code}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Approval Rate (%)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "rate(loan_predictions_total{result=\"approved\"}[5m]) / rate(loan_predictions_total[5m]) * 100",
+          "legendFormat": "Approval rate"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Predictions (approved vs rejected)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "expr": "rate(loan_predictions_total[5m])",
+          "legendFormat": "{{result}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Prediction Probability Distribution",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, rate(loan_prediction_probability_bucket[5m]))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.9, rate(loan_prediction_probability_bucket[5m]))",
+          "legendFormat": "p90"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(loan_prediction_probability_bucket[5m]))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "API Latency (p50 / p95)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, rate(http_request_duration_seconds_bucket{handler=\"/predict\"}[1m]))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{handler=\"/predict\"}[1m]))",
+          "legendFormat": "p95"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 6,
+      "title": "Prediction Errors",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "targets": [
+        {
+          "expr": "increase(loan_prediction_errors_total[1h])",
+          "legendFormat": "Errors (last 1h)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        }
+      }
+    },
+
+    {
+      "id": 7,
+      "title": "Rolling Approval Rate (last 100 predictions)",
+      "type": "stat",
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 24 },
+      "targets": [
+        {
+          "expr": "loan_approval_rate * 100",
+          "legendFormat": "Approval rate"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "steps": [
+              { "color": "red",    "value": 0  },
+              { "color": "yellow", "value": 30 },
+              { "color": "green",  "value": 60 }
+            ]
+          }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+
+    {
+      "id": 8,
+      "title": "Income Distribution (p50 / p90) — Data Drift",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 18, "x": 6, "y": 24 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, rate(loan_request_income_bucket[5m]))",
+          "legendFormat": "p50 income"
+        },
+        {
+          "expr": "histogram_quantile(0.9, rate(loan_request_income_bucket[5m]))",
+          "legendFormat": "p90 income"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "currencyUSD" } }
+    },
+
+    {
+      "id": 9,
+      "title": "Loan Amount Distribution (p50 / p90) — Data Drift",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, rate(loan_request_amount_bucket[5m]))",
+          "legendFormat": "p50 amount"
+        },
+        {
+          "expr": "histogram_quantile(0.9, rate(loan_request_amount_bucket[5m]))",
+          "legendFormat": "p90 amount"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "currencyUSD" } }
+    },
+
+    {
+      "id": 10,
+      "title": "LTI Ratio Distribution (p50 / p90) — Data Drift",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, rate(loan_request_lti_ratio_bucket[5m]))",
+          "legendFormat": "p50 LTI"
+        },
+        {
+          "expr": "histogram_quantile(0.9, rate(loan_request_lti_ratio_bucket[5m]))",
+          "legendFormat": "p90 LTI"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } }
+    },
+
+    {
+      "id": 11,
+      "title": "Batch Request Size",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, rate(loan_batch_size_bucket[5m]))",
+          "legendFormat": "p50 batch size"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(loan_batch_size_bucket[5m]))",
+          "legendFormat": "p95 batch size"
+        }
+      ]
+    }
+  ]
+}

@@ -1,3 +1,5 @@
+import os
+
 # cleaning
 COLUMNS_TO_DROP = ["loan_grade", "loan_int_rate", "id"]
 TARGET_COLUMN = "loan_status"
@@ -16,7 +18,13 @@ CATEGORICAL_DTYPE = "object"
 OHE_HANDLE_UNKNOWN = "ignore"
 
 CV_FOLDS = 5
-MAX_EVALS = 10
+MAX_EVALS = 50
 
 RANDOM_STATE = 42
 TEST_SIZE = 0.2
+
+# MLflow — MLFLOW_TRACKING_URI env var overrides the default (useful in CI/CD)
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
+MLFLOW_EXPERIMENT_NAME = "Loan Prediction Approval Experiments"
+MLFLOW_MODEL_NAME = "loan-approval-model"
+F1_PROMOTION_THRESHOLD = 0.5  # minimum F1 to promote to champion

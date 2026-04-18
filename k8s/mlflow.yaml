@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  namespace: user-oualy
+  labels:
+    app: mlflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      initContainers:
+        - name: download-db
+          image: amazon/aws-cli:latest
+          command:
+            - aws
+            - s3
+            - cp
+            - s3://oualy/mlflow.db
+            - /data/mlflow.db
+            - --endpoint-url
+            - https://minio.lab.sspcloud.fr
+          envFrom:
+            - secretRef:
+                name: loan-api-secret
+          volumeMounts:
+            - name: mlflow-data
+              mountPath: /data
+
+      containers:
+        - name: mlflow
+          image: python:3.12-slim
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              pip install mlflow==3.11.1 boto3 -q
+              exec mlflow server \
+                --backend-store-uri sqlite:////data/mlflow.db \
+                --default-artifact-root s3://oualy/mlruns \
+                --host 0.0.0.0 \
+                --port 5000
+          ports:
+            - containerPort: 5000
+          envFrom:
+            - secretRef:
+                name: loan-api-secret
+          volumeMounts:
+            - name: mlflow-data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "1Gi"
+            limits:
+              cpu: "1000m"
+              memory: "3Gi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+
+      volumes:
+        - name: mlflow-data
+          persistentVolumeClaim:
+            claimName: mlflow-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow
+  namespace: user-oualy
+  labels:
+    app: mlflow
+spec:
+  selector:
+    app: mlflow
+  ports:
+    - name: http
+      protocol: TCP
+      port: 5000
+      targetPort: 5000
+  type: ClusterIP

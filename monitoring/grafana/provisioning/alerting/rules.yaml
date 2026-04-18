@@ -1,0 +1,94 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: loan-api-alerts
+    folder: LoanAPI
+    interval: 1m
+    rules:
+
+      # ── High prediction error rate ──────────────────────────────────
+      - uid: alert-high-errors
+        title: "High Prediction Error Rate"
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            model:
+              expr: increase(loan_prediction_errors_total[5m])
+              intervalMs: 60000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              conditions:
+                - evaluator: { params: [5], type: gt }
+                  query: { params: [A] }
+        noDataState: OK
+        execErrState: Error
+        for: 2m
+        annotations:
+          summary: "{{ $values.A }} prediction errors in the last 5 minutes"
+        labels:
+          severity: critical
+        notifications:
+          - uid: loan-api-webhook
+
+      # ── Low approval rate (potential model degradation) ─────────────
+      - uid: alert-low-approval-rate
+        title: "Abnormally Low Approval Rate"
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            model:
+              expr: loan_approval_rate * 100
+              intervalMs: 60000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              conditions:
+                - evaluator: { params: [10], type: lt }
+                  query: { params: [A] }
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "Approval rate dropped to {{ $values.A }}% — possible model issue"
+        labels:
+          severity: warning
+        notifications:
+          - uid: loan-api-webhook
+
+      # ── High API latency ────────────────────────────────────────────
+      - uid: alert-high-latency
+        title: "High API Latency (p95 > 2s)"
+        condition: C
+        data:
+          - refId: A
+            datasourceUid: prometheus
+            model:
+              expr: >
+                histogram_quantile(0.95,
+                  rate(http_request_duration_seconds_bucket{handler="/predict"}[1m]))
+              intervalMs: 60000
+              maxDataPoints: 43200
+          - refId: C
+            datasourceUid: "__expr__"
+            model:
+              type: threshold
+              conditions:
+                - evaluator: { params: [2], type: gt }
+                  query: { params: [A] }
+        noDataState: OK
+        execErrState: Error
+        for: 3m
+        annotations:
+          summary: "p95 latency on /predict is {{ $values.A }}s (threshold: 2s)"
+        labels:
+          severity: warning
+        notifications:
+          - uid: loan-api-webhook

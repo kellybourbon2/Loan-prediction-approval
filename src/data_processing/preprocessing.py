@@ -1,4 +1,3 @@
-import sys
 from pathlib import Path
 
 import pandas as pd
@@ -6,11 +5,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, StandardScaler
 
-# define root dir so can see src module
-ROOT_DIR = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(ROOT_DIR))
-
-from config import (  # noqa: E402
+from config import (
     AGE_COLUMN,
     AGE_CATEGORY_COLUMN,
     BINS_AGE,
@@ -31,6 +26,7 @@ class DataPreprocessor:
         self.scaler = StandardScaler()
         self.encoder = None
         self.ordinal_encoder = None
+        self.numerical_cols = None
 
     def clean_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """Drop duplicates, missing values and useless columns"""
@@ -72,17 +68,32 @@ class DataPreprocessor:
 
     def normalize_data(self, X_train: pd.DataFrame, X_test: pd.DataFrame):
         """Normalize only continuous numerical features"""
-        numerical_cols = X_train.select_dtypes(include=["int64", "float64"]).columns
-        numerical_cols = [
+        self.numerical_cols = [
             col
             for col in X_train.select_dtypes(include=["int64", "float64"]).columns
             if col != CREDIT_DEFAULT_BINARY_COLUMN
         ]  # exclude binary column created
 
-        X_train[numerical_cols] = self.scaler.fit_transform(X_train[numerical_cols])
-        X_test[numerical_cols] = self.scaler.transform(X_test[numerical_cols])
+        X_train[self.numerical_cols] = self.scaler.fit_transform(
+            X_train[self.numerical_cols]
+        )
+        X_test[self.numerical_cols] = self.scaler.transform(X_test[self.numerical_cols])
 
         return X_train, X_test
+
+    def inference_transform(self, df: pd.DataFrame):
+        """Apply feature engineering + normalization + encoding for a single inference sample.
+
+        Skips clean_data (no columns to drop at inference time).
+        Requires the preprocessor to be already fitted (after preprocessing_pipeline).
+        """
+        df = df.copy()
+        df = self.feature_engineering(df)
+        df[self.numerical_cols] = self.scaler.transform(df[self.numerical_cols])
+        df[AGE_CATEGORY_COLUMN] = self.ordinal_encoder.transform(
+            df[[AGE_CATEGORY_COLUMN]]
+        )
+        return self.encoder.transform(df)
 
     def feature_encoding(self, X_train: pd.DataFrame, X_test: pd.DataFrame):
         """Transform categorical columns so they can be processed by the model"""
@@ -127,24 +138,22 @@ class DataPreprocessor:
         X_train, X_test, y_train, y_test = self.split_data(df)
         X_train, X_test = self.normalize_data(X_train, X_test)
         X_train, X_test = self.feature_encoding(X_train, X_test)
-        return X_train, X_test, y_train, y_test
+        return X_train, X_test, y_train, y_test, self
 
-    # def preprocess_test_data(df: pd.DataFrame, encoder: ColumnTransformer) -> pd.DataFrame:
 
-    #     # drop the columns that are not useful for the model
-    #     df = df.drop(columns=COLUMNS_TO_DROP)
+def preprocess_data(df: pd.DataFrame):
+    """Wrapper function to apply the full preprocessing pipeline.
 
-    #     # Separate target
-    #     y_test = df[TARGET_COLUMN]
-    #     X_test = df.drop(columns=[TARGET_COLUMN])
-
-    #     # One-hot encode categorical features using the same encoder fitted on the training data
-    #     X_test = encoder.transform(X_test)
-
-    #     return X_test, y_test
+    Returns X_train, X_test, y_train, y_test, fitted_preprocessor.
+    """
+    preprocessor = DataPreprocessor()
+    return preprocessor.preprocessing_pipeline(df)
 
 
 if __name__ == "__main__":
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
     from data_load import DataLoader
 
     loader = DataLoader()

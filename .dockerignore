@@ -1,0 +1,16 @@
+.venv/
+.git/
+__pycache__/
+*.pyc
+*.pyo
+.env
+mlflow.db
+mlruns/
+artifacts/
+notebooks/
+unit_tests/
+*.md
+.pre-commit-config.yaml
+.ruff_cache/
+.pytest_cache/
+.python-version

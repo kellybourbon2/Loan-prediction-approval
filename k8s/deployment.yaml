@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loan-api
+  namespace: user-oualy
+  labels:
+    app: loan-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: loan-api
+  template:
+    metadata:
+      labels:
+        app: loan-api
+      annotations:
+        git-sync/force-restart: "2026-04-15"
+    spec:
+      containers:
+        - name: loan-api
+          image: oualyoss/loan-api:7e16471304373d8fb6a9f4fe927918dbf3b01146
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: "http://mlflow:5000"
+            - name: MLFLOW_S3_ENDPOINT_URL
+              value: "https://minio.lab.sspcloud.fr"
+
+          envFrom:
+            - secretRef:
+                name: loan-api-secret
+
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "1500m"
+              memory: "2Gi"
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 180
+            periodSeconds: 20
+            failureThreshold: 5
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 120
+            periodSeconds: 15
+            failureThreshold: 10
+
