@@ -3,7 +3,15 @@ import os
 import joblib
 from hyperopt import Trials, fmin, space_eval, tpe
 from sklearn.calibration import CalibratedClassifierCV
+from sklearn.frozen import FrozenEstimator
 from sklearn.model_selection import train_test_split
+
+import sys
+from pathlib import Path
+
+sys.path.append(
+    str(Path(__file__).resolve().parents[1])
+)  # so can import config, data_processing
 
 import mlflow
 from config import (
@@ -58,8 +66,9 @@ if __name__ == "__main__":
 
         # Calibrate probabilities on the calibration split (never seen during training)
         calibrated_model = CalibratedClassifierCV(
-            best_model, method="isotonic", cv="prefit"
+            FrozenEstimator(best_model), method="isotonic"
         )
+
         calibrated_model.fit(X_cal, y_cal)
         mlflow.log_param("calibration_method", "isotonic")
 
