@@ -1,6 +1,6 @@
 # Loan Prediction Approval — MLOps Project
 
-> ENSAE Paris — *Mise en production* course | Branch: `ossama`
+> ENSAE Paris — *Mise en production* course 
 
 End-to-end MLOps pipeline for predicting loan approval: data processing, hyperparameter tuning across three model families, MLflow experiment tracking, FastAPI deployment, Kubernetes orchestration on SSPCloud, GitOps automation via ArgoCD, Prometheus/Grafana monitoring, SHAP explanations, and drift-triggered automatic retraining.
 
@@ -46,7 +46,6 @@ Optional (Kubernetes deployment only):
 ```bash
 git clone https://github.com/kellybourbon2/Loan-prediction-approval.git
 cd Loan-prediction-approval
-git checkout ossama
 uv sync                        # installs exact locked dependencies (uv.lock)
 uv run pre-commit install      # enables ruff lint+format on every commit
 ```
@@ -275,7 +274,7 @@ Go to **Settings → Secrets and variables → Actions** and add:
 | `AWS_SESSION_TOKEN` | Secret | — |
 | `AWS_S3_ENDPOINT` | Secret | e.g. `minio.lab.sspcloud.fr` |
 | `AWS_BUCKET_NAME` | Secret | — |
-| `GH_PAT` | Secret | (optional) GitHub PAT with `repo` scope — needed if `ossama` has branch protection rules |
+| `GH_PAT` | Secret | (optional) GitHub PAT with `repo` scope|
 | `DOCKERHUB_USERNAME` | Variable | Docker Hub username |
 | `API_URL` | Variable | Deployed API base URL — enables integration tests and post-deploy healthcheck |
 
