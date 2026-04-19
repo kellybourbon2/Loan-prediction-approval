@@ -8,7 +8,7 @@ on:
       - "Dockerfile"
       - "pyproject.toml"
       - "uv.lock"
-      - "cd.yml"
+      - ".github/workflows/cd.yml"
 
 jobs:
   build-and-push:
