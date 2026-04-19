@@ -184,19 +184,9 @@ Open the following links to visualise each service:
 | Prometheus | http://localhost:9090 | — |
 | Grafana | http://localhost:3000 | admin / admin |
 
-Note that the docker-compose play the role locally, that 
-
 ---
-### Step 7 — Deploy the API for future handling by Kubernetes
 
-Let's get back to our simple API. 
-Let's give to src/run.sh script running permission:
-```bash
-chmod +x ./src/run.sh
-```
-
-
-### Step 8 — Run the tests
+### Step 7 — Run the tests
 
 Once you successfully run the API, you can run the following test, in another terminal (**while the API is still running**):
 
