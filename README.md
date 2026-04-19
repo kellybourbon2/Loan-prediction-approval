@@ -34,20 +34,19 @@ This section is for anyone who wants to clone the repo and get the exact same re
 | uv | latest | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 | Docker + Docker Compose | any recent | https://docs.docker.com/get-docker/ |
 | git | any | — |
-| Acces to Mlflow service on SSPCloud| — | — |
-| Access to a MinIO S3 bucket on SSPCloud to store the data
-| — | — |
+| Access to Mlflow service on SSPCloud| — | — |
+| Access to a MinIO S3 bucket on SSPCloud to store the data| — | — |
 
 Optional (Kubernetes deployment only):
 - `kubectl` configured against an SSPCloud cluster
 ---
 ### Step 0 - Pre-requisite services
 
-Open a Mlflow service (on SSPCloud for example) and copy somewhere the following variables, that you can find during the creation of the service: 
-MLFLOW_TRACKING_USERNAME
-MLFLOW_TRACKING_URI
-MLFLOW_TRACKING_PASSWORD
->MLFLOW_TRACKING_URI corresponds to the link proposed during the creation of the service
+Open a **Mlflow service** (on SSPCloud for example) and copy somewhere the following variables, that you can find during the creation of the service: 
+- MLFLOW_TRACKING_USERNAME
+- MLFLOW_TRACKING_PASSWORD
+- MLFLOW_TRACKING_URI
+>MLFLOW_TRACKING_URI corresponds to the http link proposed during the creation of the service
 
 
 ### Step 1 — Clone and install
@@ -68,7 +67,7 @@ uv run pre-commit install      # enables ruff lint+format on every commit
 The model trains on the **Kaggle Playground Series S4E10 — Loan Approval Prediction** dataset.
 
 1. Download `train.csv` from https://www.kaggle.com/competitions/playground-series-s4e10/data
-2. Upload it to your S3 bucket at the root: `s3://<your-bucket>/train.csv`
+2. Upload it to your S3 bucket at the root: `s3://username/<your-bucket>/train.csv`
 
 The data loader reads it directly from S3 at training time — no local copy needed.
 
@@ -88,7 +87,7 @@ AWS_ACCESS_KEY_ID=<your_key>
 AWS_SECRET_ACCESS_KEY=<your_secret>
 AWS_SESSION_TOKEN=<your_token>         # leave empty if not using SSPCloud temp tokens
 AWS_S3_ENDPOINT=minio.lab.sspcloud.fr
-AWS_BUCKET_NAME=<your_data_bucket>          # the bucket where train.csv is stored
+AWS_BUCKET_NAME=<your_data_bucket>          # the path to the bucket where train.csv is stored 
 
 #mlflow setting
 MLFLOW_TRACKING_USERNAME=<your_mlflow_username>
@@ -166,13 +165,18 @@ curl -X POST http://localhost:8000/predict \
 ```
 ---
 
-Once the API requested, you can close the application by running "Ctrl + C" in the terminal where uvicorn is runninng.
+Once the API requested, you can close the application by running "Ctrl + C" in the terminal where uvicorn is running.
 
 ### Step 6 — Run the full local stack (API + Prometheus + Grafana)
+
+Let's try the `docker-compose.yaml` manifest, that pulls Prometheus and Grafana images + build local API image, to create three containers where the api, Grafana and Prometheus can live independantly.
+
+Since there is no docker on SSPCloud, open a local VSCode with docker installed on it and run:
 
 ```bash
 docker compose up
 ```
+Open the following links to visualise each service: 
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
@@ -281,6 +285,17 @@ Positive SHAP values push toward approval, negative toward rejection.
 
 Go to **Settings → Secrets and variables → Actions** and add:
 
+First, add your docker credentials to Github Action to be able to see the images built on your dockerhub account:
+
+| Name | Type | Value |
+|------|------|-------|
+| `DOCKERHUB_TOKEN` | Secret | Docker Hub access token |
+| `DOCKERHUB_USERNAME` | Variable | Docker Hub username |
+
+>Make sure to create a DOCKERHUB_TOKEN with "Read" scope. 
+
+: 
+
 | Name | Type | Value |
 |------|------|-------|
 | `DOCKERHUB_TOKEN` | Secret | Docker Hub access token |
@@ -289,7 +304,6 @@ Go to **Settings → Secrets and variables → Actions** and add:
 | `AWS_SESSION_TOKEN` | Secret | — |
 | `AWS_S3_ENDPOINT` | Secret | e.g. `minio.lab.sspcloud.fr` |
 | `AWS_BUCKET_NAME` | Secret | — |
-| `GH_PAT` | Secret | (optional) GitHub PAT with `repo` scope|
 | `DOCKERHUB_USERNAME` | Variable | Docker Hub username |
 | `API_URL` | Variable | Deployed API base URL — enables integration tests and post-deploy healthcheck |
 

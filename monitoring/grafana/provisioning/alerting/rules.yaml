@@ -7,12 +7,14 @@ groups:
     interval: 1m
     rules:
 
-      # ── High prediction error rate ──────────────────────────────────
       - uid: alert-high-errors
         title: "High Prediction Error Rate"
         condition: C
         data:
           - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
             datasourceUid: prometheus
             model:
               expr: increase(loan_prediction_errors_total[5m])
@@ -32,15 +34,17 @@ groups:
           summary: "{{ $values.A }} prediction errors in the last 5 minutes"
         labels:
           severity: critical
-        notifications:
-          - uid: loan-api-webhook
+        notification_settings:
+          receiver: loan-api-alerts
 
-      # ── Low approval rate (potential model degradation) ─────────────
       - uid: alert-low-approval-rate
         title: "Abnormally Low Approval Rate"
         condition: C
         data:
           - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
             datasourceUid: prometheus
             model:
               expr: loan_approval_rate * 100
@@ -60,15 +64,17 @@ groups:
           summary: "Approval rate dropped to {{ $values.A }}% — possible model issue"
         labels:
           severity: warning
-        notifications:
-          - uid: loan-api-webhook
+        notification_settings:
+          receiver: loan-api-alerts
 
-      # ── High API latency ────────────────────────────────────────────
       - uid: alert-high-latency
         title: "High API Latency (p95 > 2s)"
         condition: C
         data:
           - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
             datasourceUid: prometheus
             model:
               expr: >
@@ -90,5 +96,5 @@ groups:
           summary: "p95 latency on /predict is {{ $values.A }}s (threshold: 2s)"
         labels:
           severity: warning
-        notifications:
-          - uid: loan-api-webhook
+        notification_settings:
+          receiver: loan-api-alerts
