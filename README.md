@@ -230,7 +230,7 @@ INTEGRATION_API_URL=http://localhost:8000 \
 │   ├── cd.yml                # Build Docker → push → update k8s manifest → healthcheck → rollback
 │   ├── retrain.yml           # Manual/scheduled retraining (every Monday 2am UTC)
 │   └── drift_check.yml       # Daily drift check → triggers retrain if drift detected
-├── k8s/                      # Kubernetes manifests (ArgoCD GitOps)
+├── deployement/                      # Kubernetes manifests (ArgoCD GitOps)
 ├── monitoring/
 │   └── grafana/
 │       ├── dashboards/       # Dashboard JSON (auto-provisioned)
@@ -273,7 +273,7 @@ Positive SHAP values push toward approval, negative toward rejection.
 | Workflow | Trigger | What it does |
 |----------|---------|-------------|
 | `ci.yml` | Every push | Ruff lint + format check → unit tests → integration tests against `API_URL` |
-| `cd.yml` | Push touching `src/`, `Dockerfile`, `pyproject.toml`, `uv.lock` on main branch| Build Docker image → push to Docker Hub → update `k8s/deployment.yaml` image tag → wait 60s → GET `/health` → auto-rollback if error 503 |
+| `cd.yml` | Push touching `src/`, `Dockerfile`, `pyproject.toml`, `uv.lock` on main branch| Build Docker image → push to Docker Hub → update `deployment/deployment.yaml` image tag → wait 60s → GET `/health` → auto-rollback if error 503 |
 | `retrain.yml` | Manual or every Monday 2am UTC | Full retraining + MLflow registry update |
 | `drift_check.yml` | Daily 8am UTC | Download `predictions.jsonl` from S3 → KS + PSI analysis → trigger `retrain.yml` if drift detected |
 
@@ -309,9 +309,21 @@ First, add your docker credentials to Github Action to be able to see the images
 
 ## Kubernetes deployment (SSPCloud)
 
+1. Create a secret yaml manifest at the root of the project:
+```bash
+cp secret.example.yaml secret.yaml
+```
+Edit `secret.yaml` with your credentials. These are the same credentials than you enter to your .env file earlier.
+
+2. Give this secret to your cluster kubernetes
+```bash
+kubectl apply -f ./secret.yaml
+```
+
+
 ### One-time secrets setup
 
-Before applying, update `k8s/deployment.yaml` and `k8s/ingress.yaml`: replace every occurrence of `user-oualy` with your own namespace (`user-<username>`).
+
 
 ```bash
 # AWS / MinIO credentials used by the API at runtime
@@ -327,10 +339,10 @@ kubectl create secret generic loan-api-secret \
 ### Deploy
 
 ```bash
-kubectl apply -f k8s/ --recursive -n user-<username>
+kubectl apply -f deployment/ --recursive -n user-<username>
 ```
 
-ArgoCD watches the `ossama` branch (`k8s/` path) and syncs automatically on every push.
+ArgoCD watches the `developement` branch (`deployment/` path) and syncs automatically on every push.
 
 The API connects to the MLflow service inside the cluster (`http://mlflow:5000`) — no local SQLite copy needed. The MLflow service itself uses S3 (`s3://<bucket>/mlruns`) as artifact backend.
 
@@ -345,13 +357,13 @@ GitHub Actions CI  ──── lint + tests
     ▼
 GitHub Actions CD  ──── build Docker image ──── push to Docker Hub
     │                                                   │
-    │                                    update k8s/deployment.yaml
+    │                                    update deployment/deployment.yaml
     │                                                   │
     ▼                                                   ▼
 ArgoCD (SSPCloud) ──────────────────── sync Kubernetes manifests
     │
     ▼
-Pod: loan-api ──── reads @champion model from ──── MLflow service (k8s)
+Pod: loan-api ──── reads @champion model from ──── MLflow service (SSPCloud)
     │                                                   │
     ├── POST /predict ──────────────────────────────────┤
     ├── GET  /metrics ── Prometheus ── Grafana          │

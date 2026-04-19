@@ -216,4 +216,5 @@ mlflow.db
 # prediction logs (drift analysis)
 logs/
 
-.claude/k8s/secret.yaml
+#secrets
+secret.yaml
