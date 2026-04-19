@@ -47,8 +47,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add deployment/deployment.yaml
           git diff --staged --quiet || git commit -m "ci: update loan-api image to ${{ github.sha }}"
-          git pull --rebase origin main
-          git push origin main
+          git pull --rebase origin deployment-kubernetes
+          git push origin deployment-kubernetes
 
   post-deploy-check:
     needs: build-and-push
@@ -87,5 +87,5 @@ jobs:
           git checkout HEAD~1 -- deployment/deployment.yaml 
           git add deployment/deployment.yaml
           git commit -m "ci: rollback deployment — healthcheck failed for ${{ github.sha }}"
-          git pull --rebase origin main
-          git push origin HEAD:main
+          git pull --rebase origin deployment-kubernetes
+          git push origin deployment-kubernetes
