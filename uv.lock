@@ -1331,6 +1331,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "docker" },
     { name = "dotenv" },
     { name = "ipykernel" },
     { name = "lightgbm" },
@@ -1371,6 +1372,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "docker", specifier = ">=7.1.0" },
     { name = "dotenv", specifier = ">=0.9.9" },
     { name = "ipykernel", specifier = ">=7.2.0" },
     { name = "lightgbm", specifier = ">=4.6.0" },
