@@ -34,11 +34,12 @@ This section is for anyone who wants to clone the repo and get the exact same re
 | uv | latest | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 | Docker + Docker Compose | any recent | https://docs.docker.com/get-docker/ |
 | git | any | — |
+| Acces to Mlflow service on SSPCloud| — | — |
+| Access to a MinIO S3 bucket on SSPCloud to store the data
+| — | — |
 
 Optional (Kubernetes deployment only):
 - `kubectl` configured against an SSPCloud cluster
-- Access to a MinIO S3 bucket on `minio.lab.sspcloud.fr`
-
 ---
 ### Step 0 - Pre-requisite services
 
@@ -87,14 +88,14 @@ AWS_ACCESS_KEY_ID=<your_key>
 AWS_SECRET_ACCESS_KEY=<your_secret>
 AWS_SESSION_TOKEN=<your_token>         # leave empty if not using SSPCloud temp tokens
 AWS_S3_ENDPOINT=minio.lab.sspcloud.fr
-AWS_BUCKET_NAME=<your_bucket>          # the bucket where train.csv is stored
+AWS_BUCKET_NAME=<your_data_bucket>          # the bucket where train.csv is stored
 
 #mlflow setting
 MLFLOW_TRACKING_USERNAME=<your_mlflow_username>
 MLFLOW_TRACKING_URI=<your_mlflow_tracking_uri>
 MLFLOW_TRACKING_PASSWORD=<your_mlflow_password>
 ```
->For the MLFLOW variables, put the ones you've copied in step 0. 
+>For the MLFLOW variables, put the ones you've copied in step 0.  
 
 These variables are loaded automatically by `data_load.py` via `python-dotenv`.
 
@@ -164,6 +165,8 @@ curl -X POST http://localhost:8000/predict \
 # → {"loan_status":1,"approved":true,"probability":0.9733}
 ```
 ---
+
+Once the API requested, you can close the application by running "Ctrl + C" in the terminal where uvicorn is runninng.
 
 ### Step 6 — Run the full local stack (API + Prometheus + Grafana)
 
@@ -268,9 +271,11 @@ Positive SHAP values push toward approval, negative toward rejection.
 | Workflow | Trigger | What it does |
 |----------|---------|-------------|
 | `ci.yml` | Every push | Ruff lint + format check → unit tests → integration tests against `API_URL` |
-| `cd.yml` | Push touching `src/`, `Dockerfile`, `pyproject.toml`, `uv.lock` | Build Docker image → push to Docker Hub → update `k8s/deployment.yaml` image tag → wait 60s → GET `/health` → auto-rollback if 503 |
+| `cd.yml` | Push touching `src/`, `Dockerfile`, `pyproject.toml`, `uv.lock` on main branch| Build Docker image → push to Docker Hub → update `k8s/deployment.yaml` image tag → wait 60s → GET `/health` → auto-rollback if error 503 |
 | `retrain.yml` | Manual or every Monday 2am UTC | Full retraining + MLflow registry update |
 | `drift_check.yml` | Daily 8am UTC | Download `predictions.jsonl` from S3 → KS + PSI analysis → trigger `retrain.yml` if drift detected |
+
+>Note that the CD is performed by a GitHub Actions bot using the automatically generated GITHUB_TOKEN. We chose this approach to ensure durable deployment: even if a user account is removed from GitHub, deployments will still be handled by the bot.
 
 ### Required GitHub Actions configuration
 
@@ -379,7 +384,7 @@ All constants are in `config.py`:
 | `RANDOM_STATE` | 42 | Seed for all random operations — guarantees reproducibility |
 | `TEST_SIZE` | 0.2 | Holdout fraction (split into calibration + eval) |
 | `F1_PROMOTION_THRESHOLD` | 0.5 | Minimum F1 required to promote a challenger to @champion |
-| `MLFLOW_TRACKING_URI` | `sqlite:///mlflow.db` | Overridden by env var in Kubernetes (`http://mlflow:5000`) |
+| `MLFLOW_TRACKING_URI` | `...` | Overridden by env var in Kubernetes (`http://mlflow:5000`) |
 | `MLFLOW_MODEL_NAME` | `loan-approval-model` | Model name in the MLflow Registry |
 
 ---
