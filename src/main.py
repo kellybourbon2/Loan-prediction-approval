@@ -1,27 +1,35 @@
 import os
+import sys
+import tempfile
+from pathlib import Path
 
 import joblib
+from dotenv import load_dotenv
 from hyperopt import Trials, fmin, space_eval, tpe
 from sklearn.calibration import CalibratedClassifierCV
+from sklearn.frozen import FrozenEstimator
 from sklearn.model_selection import train_test_split
 
 import mlflow
-from config import (
-    MAX_EVALS,
-    MLFLOW_EXPERIMENT_NAME,
-    MLFLOW_MODEL_NAME,
-    MLFLOW_TRACKING_URI,
-)
-from data_processing.data_load import data_loading
-from data_processing.preprocessing import preprocess_data
-from model.evaluate import evaluate_model
-from model.registry import promote_to_champion, register_model
-from model.search_space import search_space
-from model.train import train_model
-from model.tune import build_model, objective
+
+sys.path.append(
+    str(Path(__file__).resolve().parents[1])
+)  # so can import config, data_processing
+
+
+from config import MAX_EVALS, MLFLOW_EXPERIMENT_NAME, MLFLOW_MODEL_NAME  # noqa: E402
+
+from data_processing.data_load import data_loading  # noqa: E402
+from data_processing.preprocessing import preprocess_data  # noqa: E402
+from model.evaluate import evaluate_model  # noqa: E402
+from model.registry import promote_to_champion, register_model  # noqa: E402
+from model.search_space import search_space  # noqa: E402
+from model.train import train_model  # noqa: E402
+from model.tune import build_model, objective  # noqa: E402
+
+load_dotenv(override=True)  # override default mlflow variables with .env variables
 
 if __name__ == "__main__":
-    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
 
     df_train = data_loading(set="train")
@@ -58,22 +66,24 @@ if __name__ == "__main__":
 
         # Calibrate probabilities on the calibration split (never seen during training)
         calibrated_model = CalibratedClassifierCV(
-            best_model, method="isotonic", cv="prefit"
+            FrozenEstimator(best_model), method="isotonic"
         )
+
         calibrated_model.fit(X_cal, y_cal)
         mlflow.log_param("calibration_method", "isotonic")
 
         # Evaluate on the held-out eval split (not the calibration set)
         acc, f1, recall, precision = evaluate_model(calibrated_model, X_eval, y_eval)
 
-        # Store the full preprocessor as an artifact (scaler + encoder + ordinal encoder)
-        os.makedirs("artifacts", exist_ok=True)
-        preprocessor_path = "artifacts/preprocessor.joblib"
-        joblib.dump(preprocessor, preprocessor_path)
-
-        # Log calibrated model + preprocessor in the same artifact folder
-        mlflow.sklearn.log_model(calibrated_model, artifact_path="model")
-        mlflow.log_artifact(preprocessor_path, artifact_path="model")
+        # Store the full preprocessor as an artifact temporary
+        # with tempfile to avoid polluting repo (scaler + encoder + ordinal encoder)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            preprocessor_path = os.path.join(tmpdir, "preprocessor.joblib")
+            joblib.dump(preprocessor, preprocessor_path)
+            mlflow.log_artifact(preprocessor_path, artifact_path="model")
+            # Log calibrated model + preprocessor in the same artifact folder
+            mlflow.sklearn.log_model(calibrated_model, artifact_path="model")
+            mlflow.log_artifact(preprocessor_path, artifact_path="model")
 
         run_id = run.info.run_id
 

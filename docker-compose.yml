@@ -3,20 +3,23 @@ services:
     build: .
     ports:
       - "8000:8000"
-    volumes:
-      - ./mlflow.db:/app/mlflow.db
-      - ./artifacts:/app/artifacts
     environment:
-      - MLFLOW_TRACKING_URI=sqlite:///mlflow.db
-      # SSPCloud credentials (forwarded from .env)
+    # SSPCloud + mlflow credentials (forwarded from .env)
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}
+      - MLFLOW_TRACKING_USERNAME=${MLFLOW_TRACKING_USERNAME}
+      - MLFLOW_TRACKING_PASSWORD=${MLFLOW_TRACKING_PASSWORD}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
       - AWS_S3_ENDPOINT=${AWS_S3_ENDPOINT}
       - AWS_BUCKET_NAME=${AWS_BUCKET_NAME}
 
+      #name of mlflow model and experiment
+      - MLFLOW_MODEL_NAME=${MLFLOW_MODEL_NAME}
+      - MLFLOW_EXPERIMENT_NAME=${MLFLOW_EXPERIMENT_NAME}
+
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.54.1
     ports:
       - "9090:9090"
     volumes:
@@ -25,7 +28,7 @@ services:
       - api
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.2.0
     ports:
       - "3000:3000"
     volumes:
@@ -35,5 +38,8 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_AUTH_ANONYMOUS_ENABLED=true        # skip login
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer     # read-only access
+      
     depends_on:
       - prometheus

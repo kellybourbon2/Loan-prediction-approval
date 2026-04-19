@@ -1,6 +1,6 @@
 # Loan Prediction Approval — MLOps Project
 
-> ENSAE Paris — *Mise en production* course | Branch: `ossama`
+> ENSAE Paris — *Mise en production* course 
 
 End-to-end MLOps pipeline for predicting loan approval: data processing, hyperparameter tuning across three model families, MLflow experiment tracking, FastAPI deployment, Kubernetes orchestration on SSPCloud, GitOps automation via ArgoCD, Prometheus/Grafana monitoring, SHAP explanations, and drift-triggered automatic retraining.
 
@@ -34,19 +34,26 @@ This section is for anyone who wants to clone the repo and get the exact same re
 | uv | latest | `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 | Docker + Docker Compose | any recent | https://docs.docker.com/get-docker/ |
 | git | any | — |
+| Access to Mlflow service on SSPCloud| — | — |
+| Access to a MinIO S3 bucket on SSPCloud to store the data| — | — |
 
 Optional (Kubernetes deployment only):
 - `kubectl` configured against an SSPCloud cluster
-- Access to a MinIO S3 bucket on `minio.lab.sspcloud.fr`
-
 ---
+### Step 0 - Pre-requisite services
+
+Open a **Mlflow service** (on SSPCloud for example) and copy somewhere the following variables, that you can find during the creation of the service: 
+- MLFLOW_TRACKING_USERNAME
+- MLFLOW_TRACKING_PASSWORD
+- MLFLOW_TRACKING_URI
+>MLFLOW_TRACKING_URI corresponds to the http link proposed during the creation of the service
+
 
 ### Step 1 — Clone and install
 
 ```bash
 git clone https://github.com/kellybourbon2/Loan-prediction-approval.git
 cd Loan-prediction-approval
-git checkout ossama
 uv sync                        # installs exact locked dependencies (uv.lock)
 uv run pre-commit install      # enables ruff lint+format on every commit
 ```
@@ -60,7 +67,7 @@ uv run pre-commit install      # enables ruff lint+format on every commit
 The model trains on the **Kaggle Playground Series S4E10 — Loan Approval Prediction** dataset.
 
 1. Download `train.csv` from https://www.kaggle.com/competitions/playground-series-s4e10/data
-2. Upload it to your S3 bucket at the root: `s3://<your-bucket>/train.csv`
+2. Upload it to your S3 bucket at the root: `s3://username/<your-bucket>/train.csv`
 
 The data loader reads it directly from S3 at training time — no local copy needed.
 
@@ -75,12 +82,19 @@ cp .env.example .env
 Edit `.env` with your credentials:
 
 ```env
+#S3 setting
 AWS_ACCESS_KEY_ID=<your_key>
 AWS_SECRET_ACCESS_KEY=<your_secret>
 AWS_SESSION_TOKEN=<your_token>         # leave empty if not using SSPCloud temp tokens
 AWS_S3_ENDPOINT=minio.lab.sspcloud.fr
-AWS_BUCKET_NAME=<your_bucket>          # the bucket where train.csv is stored
+AWS_BUCKET_NAME=<your_data_bucket>          # the path to the bucket where train.csv is stored 
+
+#mlflow setting
+MLFLOW_TRACKING_USERNAME=<your_mlflow_username>
+MLFLOW_TRACKING_URI=<your_mlflow_tracking_uri>
+MLFLOW_TRACKING_PASSWORD=<your_mlflow_password>
 ```
+>For the MLFLOW variables, put the ones you've copied in step 0.  
 
 These variables are loaded automatically by `data_load.py` via `python-dotenv`.
 
@@ -116,12 +130,8 @@ Expected results on the eval split (may vary slightly due to Hyperopt stochastic
 | Recall | ~0.87 |
 | Precision | ~0.89 |
 
-To inspect runs after training:
-
-```bash
-uv run mlflow ui --backend-store-uri sqlite:///mlflow.db
-# → open http://127.0.0.1:5000
-```
+To inspect runs after training, you can open manually the link corresponding to your MLFLOW_TRACKING_URI variable.
+> You'll see all the metrics in Model Training > Loan Approval Experiments
 
 ---
 
@@ -130,12 +140,12 @@ uv run mlflow ui --backend-store-uri sqlite:///mlflow.db
 The API loads the `@champion` model from MLflow at startup.
 
 ```bash
-uv run uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
-# → http://localhost:8000
-# → http://localhost:8000/docs  (Swagger UI)
+uv run uvicorn src.api.app:app 
 ```
+By default, the API is deployed on the port 8000 of your local machine.
+You can see visualize the app by opening the following link: http://127.0.0.1:8000 
 
-Test it:
+You can also request the model directly. To do so, open a new bash terminal (**without closing the former one**) and paste:
 
 ```bash
 curl -X POST http://localhost:8000/predict \
@@ -151,16 +161,22 @@ curl -X POST http://localhost:8000/predict \
     "cb_person_default_on_file": "N",
     "cb_person_cred_hist_length": 4
   }'
-# → {"loan_status": 1, "approved": true, "probability": 0.8742}
+# → {"loan_status":1,"approved":true,"probability":0.9733}
 ```
-
 ---
 
+Once the API requested, you can close the application by running "Ctrl + C" in the terminal where uvicorn is running.
+
 ### Step 6 — Run the full local stack (API + Prometheus + Grafana)
+
+Let's try the `docker-compose.yaml` manifest, that pulls Prometheus and Grafana images + build local API image, to create three containers where the api, Grafana and Prometheus can live independantly.
+
+Since there is no docker on SSPCloud, open a local VSCode with docker installed on it and run:
 
 ```bash
 docker compose up
 ```
+Open the following links to visualise each service: 
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
@@ -174,16 +190,14 @@ The Grafana datasource and dashboards are provisioned automatically on first sta
 
 ### Step 7 — Run the tests
 
-```bash
-# Unit tests — mocked model, no network needed (28 tests)
-uv run pytest unit_tests/ --ignore=unit_tests/test_integration.py -v
+Once you successfully run the API, you can run the following test, in another terminal (**while the API is still running**):
 
-# Integration tests — requires a running API
+```bash
 INTEGRATION_API_URL=http://localhost:8000 \
   uv run pytest unit_tests/test_integration.py -v
 ```
 
-| Suite | Tests | What is covered |
+| File | Tests | What is covered |
 |-------|-------|-----------------|
 | `test_preprocessing.py` | 6 | `DataPreprocessor`: clean, feature engineering, split, encoding |
 | `test_api.py` | 14 | `/predict`, `/predict/batch`, `/explain` — mocked model |
@@ -259,13 +273,26 @@ Positive SHAP values push toward approval, negative toward rejection.
 | Workflow | Trigger | What it does |
 |----------|---------|-------------|
 | `ci.yml` | Every push | Ruff lint + format check → unit tests → integration tests against `API_URL` |
-| `cd.yml` | Push touching `src/`, `Dockerfile`, `pyproject.toml`, `uv.lock` | Build Docker image → push to Docker Hub → update `k8s/deployment.yaml` image tag → wait 60s → GET `/health` → auto-rollback if 503 |
+| `cd.yml` | Push touching `src/`, `Dockerfile`, `pyproject.toml`, `uv.lock` on main branch| Build Docker image → push to Docker Hub → update `k8s/deployment.yaml` image tag → wait 60s → GET `/health` → auto-rollback if error 503 |
 | `retrain.yml` | Manual or every Monday 2am UTC | Full retraining + MLflow registry update |
 | `drift_check.yml` | Daily 8am UTC | Download `predictions.jsonl` from S3 → KS + PSI analysis → trigger `retrain.yml` if drift detected |
+
+>Note that the CD is performed by a GitHub Actions bot using the automatically generated GITHUB_TOKEN. We chose this approach to ensure durable deployment: even if a user account is removed from GitHub, deployments will still be handled by the bot.
 
 ### Required GitHub Actions configuration
 
 Go to **Settings → Secrets and variables → Actions** and add:
+
+First, add your docker credentials to Github Action to be able to see the images built on your dockerhub account:
+
+| Name | Type | Value |
+|------|------|-------|
+| `DOCKERHUB_TOKEN` | Secret | Docker Hub access token |
+| `DOCKERHUB_USERNAME` | Variable | Docker Hub username |
+
+>Make sure to create a DOCKERHUB_TOKEN with "Read" scope. 
+
+: 
 
 | Name | Type | Value |
 |------|------|-------|
@@ -275,7 +302,6 @@ Go to **Settings → Secrets and variables → Actions** and add:
 | `AWS_SESSION_TOKEN` | Secret | — |
 | `AWS_S3_ENDPOINT` | Secret | e.g. `minio.lab.sspcloud.fr` |
 | `AWS_BUCKET_NAME` | Secret | — |
-| `GH_PAT` | Secret | (optional) GitHub PAT with `repo` scope — needed if `ossama` has branch protection rules |
 | `DOCKERHUB_USERNAME` | Variable | Docker Hub username |
 | `API_URL` | Variable | Deployed API base URL — enables integration tests and post-deploy healthcheck |
 
@@ -370,7 +396,7 @@ All constants are in `config.py`:
 | `RANDOM_STATE` | 42 | Seed for all random operations — guarantees reproducibility |
 | `TEST_SIZE` | 0.2 | Holdout fraction (split into calibration + eval) |
 | `F1_PROMOTION_THRESHOLD` | 0.5 | Minimum F1 required to promote a challenger to @champion |
-| `MLFLOW_TRACKING_URI` | `sqlite:///mlflow.db` | Overridden by env var in Kubernetes (`http://mlflow:5000`) |
+| `MLFLOW_TRACKING_URI` | `...` | Overridden by env var in Kubernetes (`http://mlflow:5000`) |
 | `MLFLOW_MODEL_NAME` | `loan-approval-model` | Model name in the MLflow Registry |
 
 ---
