@@ -140,12 +140,12 @@ To inspect runs after training, you can open manually the link corresponding to 
 The API loads the `@champion` model from MLflow at startup.
 
 ```bash
-uv run uvicorn src.api.app:app --host 0.0.0.0 --port 8000 --reload
-# → http://localhost:8000
-# → http://localhost:8000/docs  (Swagger UI)
+uv run uvicorn src.api.app:app 
 ```
+By default, the API is deployed on the port 8000 of your local machine.
+You can see visualize the app by opening the following link: http://127.0.0.1:8000 
 
-Test it:
+You can also request the model directly. To do so, open a new bash terminal (**without closing the former one**) and paste:
 
 ```bash
 curl -X POST http://localhost:8000/predict \
@@ -161,9 +161,8 @@ curl -X POST http://localhost:8000/predict \
     "cb_person_default_on_file": "N",
     "cb_person_cred_hist_length": 4
   }'
-# → {"loan_status": 1, "approved": true, "probability": 0.8742}
+# → {"loan_status":1,"approved":true,"probability":0.9733}
 ```
-
 ---
 
 ### Step 6 — Run the full local stack (API + Prometheus + Grafana)

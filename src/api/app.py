@@ -5,7 +5,6 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import numpy as np
-import mlflow
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
@@ -14,13 +13,11 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 logger = logging.getLogger(__name__)
 
-# config.py is at project root; src/ modules are siblings — both need to be on sys.path
-# because uvicorn runs as `src.api.app:app` from the project root, not from src/
+# add root so config visible
 _ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(_ROOT))
 sys.path.insert(0, str(_ROOT / "src"))
 
-from config import MLFLOW_TRACKING_URI  # noqa: E402
 from model.registry import load_champion_model, load_preprocessor_from_registry  # noqa: E402
 from api.schemas import (  # noqa: E402
     LoanApplication,
@@ -44,7 +41,6 @@ from api.logger import log_prediction  # noqa: E402
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Load model and preprocessor once at startup, release on shutdown."""
-    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     try:
         app.state.model = load_champion_model()
         app.state.preprocessor = load_preprocessor_from_registry()
