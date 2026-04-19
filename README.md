@@ -167,9 +167,9 @@ curl -X POST http://localhost:8000/predict \
 
 Once the API requested, you can close the application by running "Ctrl + C" in the terminal where uvicorn is running.
 
-### Step 6 — Run the full local stack (API + Prometheus + Grafana)
+### Step 6 — Run the full stack locally (API + Prometheus + Grafana)
 
-Let's try the `docker-compose.yaml` manifest, that pulls Prometheus and Grafana images + build local API image, to create three containers where the api, Grafana and Prometheus can live independantly.
+The `docker-compose.yaml` manifest can be used to run the full stack (API + Prometheus + Grafana) locally. This manifest allow Prometheus and Grafana images to be pulled and local API image to be built, to create three containers where the api, Grafana and Prometheus can live independantly.
 
 Since there is no docker on SSPCloud, open a local VSCode with docker installed on it and run:
 
@@ -184,11 +184,19 @@ Open the following links to visualise each service:
 | Prometheus | http://localhost:9090 | — |
 | Grafana | http://localhost:3000 | admin / admin |
 
-The Grafana datasource and dashboards are provisioned automatically on first start.
+Note that the docker-compose play the role locally, that 
 
 ---
+### Step 7 — Deploy the API for future handling by Kubernetes
 
-### Step 7 — Run the tests
+Let's get back to our simple API. 
+Let's give to src/run.sh script running permission:
+```bash
+chmod +x ./src/run.sh
+```
+
+
+### Step 8 — Run the tests
 
 Once you successfully run the API, you can run the following test, in another terminal (**while the API is still running**):
 

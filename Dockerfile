@@ -11,8 +11,9 @@ RUN uv sync --frozen --no-dev --no-install-project
 
 # Copy source code and config
 COPY src/ ./src/
+RUN chmod +x ./src/run.sh #so permission given to run.sh
 COPY config.py ./
 
 EXPOSE 8000
 
-CMD ["bash", "-c", "./src/run.sh"]
+CMD ["./src/run.sh"]
