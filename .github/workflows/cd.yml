@@ -2,7 +2,7 @@ name: CD
 
 on:
   push:
-    branches:
+    branches: [deployment-kubernetes]
     paths:
       - "src/**"
       - "Dockerfile"
