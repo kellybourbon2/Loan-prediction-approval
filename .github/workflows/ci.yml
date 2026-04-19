@@ -4,6 +4,7 @@ on:
   push:
     branches: ["**"]
     paths:
+      - ".github/workflows/ci.yml"
       - "src/**"
       - "Dockerfile"
       - "pyproject.toml"
