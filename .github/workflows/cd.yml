@@ -4,7 +4,8 @@ on:
   push:
     branches: [deployment-kubernetes]
     paths:
-      - "k8s/deployment.yaml"
+      - "deployment/deployment.yaml"
+      - ".github/workflows/cd.yml"
 
 jobs:
   post-deploy-check:
@@ -26,7 +27,7 @@ jobs:
           fi
           echo "Healthcheck passed (HTTP $STATUS)"
 
-      - name: Rollback — revert k8s/deployment.yaml to previous image on failure
+      - name: Rollback — revert deployment/deployment.yaml to previous image on failure
         if: failure() && steps.healthcheck.outcome == 'failure'
         uses: actions/checkout@v4
         with:
@@ -38,8 +39,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout HEAD~1 -- k8s/deployment.yaml
-          git add k8s/deployment.yaml
+          git checkout HEAD~1 -- deployment/deployment.yaml
+          git add deployment/deployment.yaml
           git commit -m "ci: rollback deployment — healthcheck failed for ${{ github.sha }}"
           git pull --rebase origin deployment-kubernetes
           git push origin deployment-kubernetes
