@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: loan-api
-          image: kellybrbn/loan-api:8bb1b7141d3f291c33f7ba05862ae649b0a9fe38
+          image: kellybrbn/loan-api:f5fed07b529ab6df0a2b2da096acadb64384133e
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
