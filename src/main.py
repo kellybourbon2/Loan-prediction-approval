@@ -5,6 +5,7 @@ from hyperopt import Trials, fmin, space_eval, tpe
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.frozen import FrozenEstimator
 from sklearn.model_selection import train_test_split
+from dotenv import load_dotenv
 
 import sys
 from pathlib import Path
@@ -14,12 +15,8 @@ sys.path.append(
 )  # so can import config, data_processing
 
 import mlflow
-from config import (
-    MAX_EVALS,
-    MLFLOW_EXPERIMENT_NAME,
-    MLFLOW_MODEL_NAME,
-    MLFLOW_TRACKING_URI,
-)
+from config import MAX_EVALS, MLFLOW_EXPERIMENT_NAME, MLFLOW_MODEL_NAME
+
 from data_processing.data_load import data_loading
 from data_processing.preprocessing import preprocess_data
 from model.evaluate import evaluate_model
@@ -28,8 +25,9 @@ from model.search_space import search_space
 from model.train import train_model
 from model.tune import build_model, objective
 
+load_dotenv(override=True)  # override default mlflow variables with .env variables
+
 if __name__ == "__main__":
-    mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
     mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
 
     df_train = data_loading(set="train")

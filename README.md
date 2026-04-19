@@ -40,6 +40,14 @@ Optional (Kubernetes deployment only):
 - Access to a MinIO S3 bucket on `minio.lab.sspcloud.fr`
 
 ---
+### Step 0 - Pre-requisite services
+
+Open a Mlflow service (on SSPCloud for example) and copy somewhere the following variables, that you can find during the creation of the service: 
+MLFLOW_TRACKING_USERNAME
+MLFLOW_TRACKING_URI
+MLFLOW_TRACKING_PASSWORD
+>MLFLOW_TRACKING_URI corresponds to the link proposed during the creation of the service
+
 
 ### Step 1 — Clone and install
 
@@ -74,12 +82,19 @@ cp .env.example .env
 Edit `.env` with your credentials:
 
 ```env
+#S3 setting
 AWS_ACCESS_KEY_ID=<your_key>
 AWS_SECRET_ACCESS_KEY=<your_secret>
 AWS_SESSION_TOKEN=<your_token>         # leave empty if not using SSPCloud temp tokens
 AWS_S3_ENDPOINT=minio.lab.sspcloud.fr
 AWS_BUCKET_NAME=<your_bucket>          # the bucket where train.csv is stored
+
+#mlflow setting
+MLFLOW_TRACKING_USERNAME=<your_mlflow_username>
+MLFLOW_TRACKING_URI=<your_mlflow_tracking_uri>
+MLFLOW_TRACKING_PASSWORD=<your_mlflow_password>
 ```
+>For the MLFLOW variables, put the ones you've copied in step 0. 
 
 These variables are loaded automatically by `data_load.py` via `python-dotenv`.
 
@@ -115,12 +130,8 @@ Expected results on the eval split (may vary slightly due to Hyperopt stochastic
 | Recall | ~0.87 |
 | Precision | ~0.89 |
 
-To inspect runs after training:
-
-```bash
-uv run mlflow ui --backend-store-uri sqlite:///mlflow.db
-# → open http://127.0.0.1:5000
-```
+To inspect runs after training, you can open manually the link corresponding to your MLFLOW_TRACKING_URI variable.
+> You'll see all the metrics in Model Training > Loan Approval Experiments
 
 ---
 
