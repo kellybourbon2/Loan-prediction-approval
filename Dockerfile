@@ -16,4 +16,4 @@ COPY config.py ./
 
 EXPOSE 8000
 
-CMD ["./src/run.sh"]
+CMD ["bash", "-c", "./src/run.sh"]
