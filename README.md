@@ -309,6 +309,8 @@ First, add your docker credentials to Github Action to be able to see the images
 
 ## Kubernetes deployment (SSPCloud)
 
+**Warning**: You can't orchestrate the kubernetes cluster if you have not chosen "Admin" as role during the creation of your SSPCloud VSCode service.
+
 1. Create a secret yaml manifest at the root of the project:
 ```bash
 cp secret.example.yaml secret.yaml
@@ -319,7 +321,11 @@ Edit `secret.yaml` with your credentials. These are the same credentials than yo
 ```bash
 kubectl apply -f ./secret.yaml
 ```
-
+3. Apply the yaml manifests to the cluster
+```bash
+envsubst < deployment/ | kubectl apply -f -
+```
+>envsubst enables the variable $KUBERNETES_USERNAME$ in the manifests to be automatically changed into the variable of the local cluster.
 
 ### One-time secrets setup
 

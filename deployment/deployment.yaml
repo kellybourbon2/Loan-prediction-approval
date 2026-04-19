@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: loan-api
-  namespace: ${KUBERNETES_NAMESPACE}
+  namespace: user-kbourbon
   labels:
     app: loan-api
 spec:

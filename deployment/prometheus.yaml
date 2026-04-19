@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: prometheus-config
-  namespace: ${KUBERNETES_NAMESPACE}
+  namespace: user-kbourbon
 data:
   prometheus.yml: |
     global:
@@ -17,7 +17,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: prometheus
-  namespace: ${KUBERNETES_NAMESPACE}
+  namespace: user-kbourbon
   labels:
     app: prometheus
 spec:
@@ -55,7 +55,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: prometheus
-  namespace: ${KUBERNETES_NAMESPACE}
+  namespace: user-kbourbon
   labels:
     app: prometheus
 spec:

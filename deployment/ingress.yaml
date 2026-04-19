@@ -2,14 +2,14 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: loan-api
-  namespace: ${KUBERNETES_NAMESPACE}
+  namespace: user-kbourbon
   annotations:
     nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
 spec:
   ingressClassName: onyxia
   rules:
-    - host: loan-api-${KUBERNETES_NAMESPACE}.user.lab.sspcloud.fr
+    - host: loan-api-user-kbourbon.user.lab.sspcloud.fr
       http:
         paths:
           - path: /
@@ -21,17 +21,17 @@ spec:
                   number: 80
   tls:
     - hosts:
-        - loan-api-${KUBERNETES_NAMESPACE}.user.lab.sspcloud.fr
+        - loan-api-user-kbourbon.user.lab.sspcloud.fr
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: grafana
-  namespace: ${KUBERNETES_NAMESPACE}
+  namespace: user-kbourbon
 spec:
   ingressClassName: onyxia
   rules:
-    - host: grafana-loan-${KUBERNETES_NAMESPACE}.user.lab.sspcloud.fr
+    - host: grafana-loan-user-kbourbon.user.lab.sspcloud.fr
       http:
         paths:
           - path: /
@@ -43,4 +43,4 @@ spec:
                   number: 3000
   tls:
     - hosts:
-        - grafana-loan-${KUBERNETES_NAMESPACE}.user.lab.sspcloud.fr
+        - grafana-loan-user-kbourbon.user.lab.sspcloud.fr

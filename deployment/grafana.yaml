@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: grafana-datasources
-  namespace: ${KUBERNETES_NAMESPACE}
+  namespace: user-kbourbon
 data:
   prometheus.yaml: |
     apiVersion: 1
@@ -18,7 +18,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: grafana-dashboard-provider
-  namespace: ${KUBERNETES_NAMESPACE}
+  namespace: user-kbourbon
 data:
   dashboard.yaml: |
     apiVersion: 1
@@ -36,7 +36,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: grafana
-  namespace: ${KUBERNETES_NAMESPACE}
+  namespace: user-kbourbon
   labels:
     app: grafana
 spec:
@@ -96,7 +96,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: grafana
-  namespace: ${KUBERNETES_NAMESPACE}
+  namespace: user-kbourbon
   labels:
     app: grafana
 spec:
