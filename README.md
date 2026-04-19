@@ -190,16 +190,14 @@ The Grafana datasource and dashboards are provisioned automatically on first sta
 
 ### Step 7 — Run the tests
 
-```bash
-# Unit tests — mocked model, no network needed (28 tests)
-uv run pytest unit_tests/ --ignore=unit_tests/test_integration.py -v
+Once you successfully run the API, you can run the following test, in another terminal (**while the API is still running**):
 
-# Integration tests — requires a running API
+```bash
 INTEGRATION_API_URL=http://localhost:8000 \
   uv run pytest unit_tests/test_integration.py -v
 ```
 
-| Suite | Tests | What is covered |
+| File | Tests | What is covered |
 |-------|-------|-----------------|
 | `test_preprocessing.py` | 6 | `DataPreprocessor`: clean, feature engineering, split, encoding |
 | `test_api.py` | 14 | `/predict`, `/predict/batch`, `/explain` — mocked model |
