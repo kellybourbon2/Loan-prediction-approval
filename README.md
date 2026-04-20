@@ -216,11 +216,11 @@ INTEGRATION_API_URL=http://localhost:8000 \
 │   ├── main.py               # Full training entrypoint
 │   └── drift_analysis.py     # KS test + PSI drift detection
 ├── .github/workflows/
-│   ├── ci.yml                # Ruff + unit tests + integration tests
-│   ├── cd.yml                # Build Docker → push → update k8s manifest → healthcheck → rollback
-│   ├── retrain.yml           # Manual/scheduled retraining (every Monday 2am UTC)
+│   ├── ci.yml                # Ruff + unit tests + integration tests + build and push api image
+│   ├── retrain.yml           # Manual/scheduled retraining (every Monday 2am UTC) --> triggers ci 
 │   └── drift_check.yml       # Daily drift check → triggers retrain if drift detected
-├── deployement/                      # Kubernetes manifests (ArgoCD GitOps)
+│   
+│
 ├── monitoring/
 │   └── grafana/
 │       ├── dashboards/       # Dashboard JSON (auto-provisioned)
@@ -262,7 +262,6 @@ Positive SHAP values push toward approval, negative toward rejection.
 
 | Workflow | Trigger | What it does |
 |----------|---------|-------------|
-| `ci.yml` | Every push | Ruff lint + format check → unit tests → integration tests against `API_URL` |
 | `cd.yml` | Push touching `src/`, `Dockerfile`, `pyproject.toml`, `uv.lock` on main branch| Build Docker image → push to Docker Hub → update `deployment/deployment.yaml` image tag → wait 60s → GET `/health` → auto-rollback if error 503 |
 | `retrain.yml` | Manual or every Monday 2am UTC | Full re-training of the model(run src/main.py) + MLflow registry update |
 | `drift_check.yml` | Daily 8am UTC | Download `predictions.jsonl` from S3 → KS + PSI analysis → trigger `retrain.yml` if drift detected |
