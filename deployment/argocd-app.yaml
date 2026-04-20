@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loan-prediction-api
+  namespace: user-kbourbon
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/kellybourbon2/Loan-prediction-approval
+    targetRevision: developement
+    path: deployment
+    directory:
+      exclude: "argocd-app.yaml"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: user-kbourbon
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

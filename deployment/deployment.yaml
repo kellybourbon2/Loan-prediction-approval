@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: loan-api
-  namespace: user-oualy
+  namespace: user-kbourbon
   labels:
     app: loan-api
 spec:
@@ -19,21 +19,17 @@ spec:
     spec:
       containers:
         - name: loan-api
-          image: kellybrbn/loan-api:0b73dc91810affeccdce40818efd459cb92859e6
+          image: kellybrbn/loan-api:7f824826d79f6dc549da5c4de14d33199c4e0483
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
-
           env:
-            - name: MLFLOW_TRACKING_URI
-              value: "http://mlflow:5000"
             - name: MLFLOW_S3_ENDPOINT_URL
               value: "https://minio.lab.sspcloud.fr"
-
+              env:
           envFrom:
             - secretRef:
                 name: loan-api-secret
-
           resources:
             requests:
               cpu: "500m"
@@ -41,20 +37,17 @@ spec:
             limits:
               cpu: "1500m"
               memory: "2Gi"
-
           livenessProbe:
             httpGet:
               path: /health
               port: 8000
-            initialDelaySeconds: 180
+            initialDelaySeconds: 300
             periodSeconds: 20
             failureThreshold: 5
-
           readinessProbe:
             httpGet:
               path: /health
               port: 8000
-            initialDelaySeconds: 120
+            initialDelaySeconds: 300
             periodSeconds: 15
             failureThreshold: 10
-

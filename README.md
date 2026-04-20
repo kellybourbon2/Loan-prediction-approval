@@ -167,9 +167,9 @@ curl -X POST http://localhost:8000/predict \
 
 Once the API requested, you can close the application by running "Ctrl + C" in the terminal where uvicorn is running.
 
-### Step 6 — Run the full local stack (API + Prometheus + Grafana)
+### Step 6 — Run the full stack locally (API + Prometheus + Grafana)
 
-Let's try the `docker-compose.yaml` manifest, that pulls Prometheus and Grafana images + build local API image, to create three containers where the api, Grafana and Prometheus can live independantly.
+The `docker-compose.yaml` manifest can be used to run the full stack (API + Prometheus + Grafana) locally. This manifest allow Prometheus and Grafana images to be pulled and local API image to be built, to create three containers where the api, Grafana and Prometheus can live independantly.
 
 Since there is no docker on SSPCloud, open a local VSCode with docker installed on it and run:
 
@@ -183,8 +183,6 @@ Open the following links to visualise each service:
 | API | http://localhost:8000 | — |
 | Prometheus | http://localhost:9090 | — |
 | Grafana | http://localhost:3000 | admin / admin |
-
-The Grafana datasource and dashboards are provisioned automatically on first start.
 
 ---
 
@@ -230,7 +228,7 @@ INTEGRATION_API_URL=http://localhost:8000 \
 │   ├── cd.yml                # Build Docker → push → update k8s manifest → healthcheck → rollback
 │   ├── retrain.yml           # Manual/scheduled retraining (every Monday 2am UTC)
 │   └── drift_check.yml       # Daily drift check → triggers retrain if drift detected
-├── k8s/                      # Kubernetes manifests (ArgoCD GitOps)
+├── deployement/                      # Kubernetes manifests (ArgoCD GitOps)
 ├── monitoring/
 │   └── grafana/
 │       ├── dashboards/       # Dashboard JSON (auto-provisioned)
@@ -273,11 +271,11 @@ Positive SHAP values push toward approval, negative toward rejection.
 | Workflow | Trigger | What it does |
 |----------|---------|-------------|
 | `ci.yml` | Every push | Ruff lint + format check → unit tests → integration tests against `API_URL` |
-| `cd.yml` | Push touching `src/`, `Dockerfile`, `pyproject.toml`, `uv.lock` on main branch| Build Docker image → push to Docker Hub → update `k8s/deployment.yaml` image tag → wait 60s → GET `/health` → auto-rollback if error 503 |
-| `retrain.yml` | Manual or every Monday 2am UTC | Full retraining + MLflow registry update |
+| `cd.yml` | Push touching `src/`, `Dockerfile`, `pyproject.toml`, `uv.lock` on main branch| Build Docker image → push to Docker Hub → update `deployment/deployment.yaml` image tag → wait 60s → GET `/health` → auto-rollback if error 503 |
+| `retrain.yml` | Manual or every Monday 2am UTC | Full re-training of the model(run src/main.py) + MLflow registry update |
 | `drift_check.yml` | Daily 8am UTC | Download `predictions.jsonl` from S3 → KS + PSI analysis → trigger `retrain.yml` if drift detected |
 
->Note that the CD is performed by a GitHub Actions bot using the automatically generated GITHUB_TOKEN. We chose this approach to ensure durable deployment: even if a user account is removed from GitHub, deployments will still be handled by the bot.
+**NB:** Note that the CD workflows (cd, retrained and drift_check) are performed by a GitHub Actions bot using the automatically generated GITHUB_TOKEN. We chose this approach to ensure durable deployment: even if a user account is removed from GitHub, deployments will still be handled by the bot.
 
 ### Required GitHub Actions configuration
 
@@ -309,9 +307,55 @@ First, add your docker credentials to Github Action to be able to see the images
 
 ## Kubernetes deployment (SSPCloud)
 
+**Warning**: You can't orchestrate the kubernetes cluster if you have not chosen the role "Admin" during the creation of your SSPCloud VSCode service.
+
+The goal here is to create three pods kubernetes to be able to run our api from any machine:
+- one pod building an environement from the official prometheus image pulled
+- one pod building an environement from the official grafana image pulled
+- one pod building an environement from our loan-api image pulled, that we've build and push earlier to the dockerhub.
+
+1. Create a secret yaml manifest at the root of the project:
+```bash
+cp secret.example.yaml secret.yaml
+```
+Edit `secret.yaml` with your credentials. These are the same credentials than you enter to your .env file earlier. The secret will be named "loan-api-secret".
+
+2. Give this secret to your cluster kubernetes
+```bash
+kubectl apply -f ./secret.yaml
+
+3. Adapt the different manifests kubernetes in the folder "deployment" by changing all the occurence of <user-name> with your own kubernetes username. In the deployment.yaml, file, also change "kellybrbn/loan-api" with your own docker image path.
+
+> Note that you can find your kubernetes username  in your environnement variables by running: 
+```bash
+env | grep ^KUBERNETES_NAMESPACE
+```
+
+```
+4. Give the yaml manifests to the cluster kubernetes 
+
+First give the kubernetes cluster the dashboard `loan_api.json` file, that is useful to monitor grafana dashboard as a configmap variable:
+
+```bash
+kubectl create configmap grafana-dashboards \
+  --from-file=./monitoring/grafana/dashboards/loan_api.json\
+  --dry-run=client -o yaml
+```
+
+Then, give the cluster all the manifests yaml from the deployment/ file: 
+```bash
+kubectl apply -f deployment/
+```
+
+You can monitor the pods by running:
+```bash
+kubectl get pods -w  
+```
+If everything went well, you should see three pods: one for loan-api, one for prometheus and one for grafana. When the three pods are the status: "Running 1/1", they're ready.
+
 ### One-time secrets setup
 
-Before applying, update `k8s/deployment.yaml` and `k8s/ingress.yaml`: replace every occurrence of `user-oualy` with your own namespace (`user-<username>`).
+
 
 ```bash
 # AWS / MinIO credentials used by the API at runtime
@@ -327,10 +371,10 @@ kubectl create secret generic loan-api-secret \
 ### Deploy
 
 ```bash
-kubectl apply -f k8s/ --recursive -n user-<username>
+kubectl apply -f deployment/ --recursive -n user-<username>
 ```
 
-ArgoCD watches the `ossama` branch (`k8s/` path) and syncs automatically on every push.
+ArgoCD watches the `developement` branch (`deployment/` path) and syncs automatically on every push.
 
 The API connects to the MLflow service inside the cluster (`http://mlflow:5000`) — no local SQLite copy needed. The MLflow service itself uses S3 (`s3://<bucket>/mlruns`) as artifact backend.
 
@@ -345,13 +389,13 @@ GitHub Actions CI  ──── lint + tests
     ▼
 GitHub Actions CD  ──── build Docker image ──── push to Docker Hub
     │                                                   │
-    │                                    update k8s/deployment.yaml
+    │                                    update deployment/deployment.yaml
     │                                                   │
     ▼                                                   ▼
 ArgoCD (SSPCloud) ──────────────────── sync Kubernetes manifests
     │
     ▼
-Pod: loan-api ──── reads @champion model from ──── MLflow service (k8s)
+Pod: loan-api ──── reads @champion model from ──── MLflow service (SSPCloud)
     │                                                   │
     ├── POST /predict ──────────────────────────────────┤
     ├── GET  /metrics ── Prometheus ── Grafana          │

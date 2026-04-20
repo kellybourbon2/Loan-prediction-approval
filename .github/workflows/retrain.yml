@@ -34,4 +34,6 @@ jobs:
           AWS_S3_ENDPOINT: ${{ secrets.AWS_S3_ENDPOINT }}
           AWS_BUCKET_NAME: ${{ secrets.AWS_BUCKET_NAME }}
           MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
-        run: uv run python src/main.py
+        run: uv run python src/main.py #retrain the model
+
+        

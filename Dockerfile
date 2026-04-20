@@ -9,10 +9,11 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
-# Copy source code and config
+# Copy source code and config .
 COPY src/ ./src/
+RUN chmod +x ./src/run.sh #so permission given to run.sh
 COPY config.py ./
 
 EXPOSE 8000
 
-CMD ["uv", "run", "uvicorn", "src.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["bash", "-c", "./src/run.sh"]

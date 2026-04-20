@@ -80,10 +80,9 @@ if __name__ == "__main__":
         with tempfile.TemporaryDirectory() as tmpdir:
             preprocessor_path = os.path.join(tmpdir, "preprocessor.joblib")
             joblib.dump(preprocessor, preprocessor_path)
-            mlflow.log_artifact(preprocessor_path, artifact_path="model")
             # Log calibrated model + preprocessor in the same artifact folder
-            mlflow.sklearn.log_model(calibrated_model, artifact_path="model")
             mlflow.log_artifact(preprocessor_path, artifact_path="model")
+            mlflow.sklearn.log_model(calibrated_model, artifact_path="model")
 
         run_id = run.info.run_id
 

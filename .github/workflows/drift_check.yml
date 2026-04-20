@@ -69,6 +69,6 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               workflow_id: 'retrain.yml',
-              ref: 'ossama',
+              ref: 'developement',
             });
             core.notice('Drift detected — retraining workflow triggered!');

@@ -2,14 +2,14 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: loan-api
-  namespace: user-oualy
+  namespace: user-kbourbon
   annotations:
     nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
 spec:
   ingressClassName: onyxia
   rules:
-    - host: loan-api-oualy.user.lab.sspcloud.fr
+    - host: loan-api-user-kbourbon.user.lab.sspcloud.fr
       http:
         paths:
           - path: /
@@ -21,39 +21,17 @@ spec:
                   number: 80
   tls:
     - hosts:
-        - loan-api-oualy.user.lab.sspcloud.fr
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: mlflow
-  namespace: user-oualy
-spec:
-  ingressClassName: onyxia
-  rules:
-    - host: mlflow-oualy.user.lab.sspcloud.fr
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: mlflow
-                port:
-                  number: 5000
-  tls:
-    - hosts:
-        - mlflow-oualy.user.lab.sspcloud.fr
+        - loan-api-user-kbourbon.user.lab.sspcloud.fr
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: grafana
-  namespace: user-oualy
+  namespace: user-kbourbon
 spec:
   ingressClassName: onyxia
   rules:
-    - host: grafana-loan-oualy.user.lab.sspcloud.fr
+    - host: grafana-loan-api-user-kbourbon.user.lab.sspcloud.fr
       http:
         paths:
           - path: /
@@ -65,4 +43,4 @@ spec:
                   number: 3000
   tls:
     - hosts:
-        - grafana-loan-oualy.user.lab.sspcloud.fr
+        - grafana-loan-api-user-kbourbon.user.lab.sspcloud.fr
