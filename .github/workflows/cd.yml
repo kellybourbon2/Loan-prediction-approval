@@ -2,7 +2,7 @@ name: CD
 
 on:
   push:
-    branches: [deployment-kubernetes]
+    branches: [main]
     paths:
       - "deployment/deployment.yaml"
       - ".github/workflows/cd.yml"
@@ -42,5 +42,5 @@ jobs:
           git checkout HEAD~1 -- deployment/deployment.yaml
           git add deployment/deployment.yaml
           git commit -m "ci: rollback deployment — healthcheck failed for ${{ github.sha }}"
-          git pull --rebase origin deployment-kubernetes
-          git push origin deployment-kubernetes
+          git pull --rebase origin main
+          git push origin HEAD:main
