@@ -5,6 +5,10 @@ on:
     - cron: "0 8 * * *"  # Daily at 8am UTC
   workflow_dispatch:
 
+permissions:
+  actions: write
+  contents: read
+
 jobs:
   check-drift:
     runs-on: ubuntu-latest
@@ -34,15 +38,19 @@ jobs:
         run: |
           mkdir -p logs
           uv run python - <<'EOF'
-          import boto3, os, sys
+          import boto3, os
+          import botocore.exceptions
           bucket   = os.environ["AWS_BUCKET_NAME"]
           endpoint = os.environ["AWS_S3_ENDPOINT"]
           s3 = boto3.client("s3", endpoint_url=f"https://{endpoint}")
           try:
               s3.download_file(bucket, "logs/predictions.jsonl", "logs/predictions.jsonl")
               print("Logs downloaded successfully.")
-          except s3.exceptions.NoSuchKey:
-              print("No prediction logs found on S3 — skipping drift check.")
+          except botocore.exceptions.ClientError as e:
+              if e.response["Error"]["Code"] in ("NoSuchKey", "404"):
+                  print("No prediction logs found on S3 — skipping drift check.")
+              else:
+                  raise
           EOF
           if [ -s logs/predictions.jsonl ]; then
             echo "has_logs=true" >> "$GITHUB_OUTPUT"
