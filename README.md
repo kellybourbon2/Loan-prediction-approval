@@ -2,21 +2,27 @@
 
 > ENSAE Paris — *Mise en production* course 
 
-End-to-end MLOps pipeline for predicting loan approval: data processing, hyperparameter tuning across three model families, MLflow experiment tracking, FastAPI deployment, Kubernetes orchestration on SSPCloud, GitOps automation via ArgoCD, Prometheus/Grafana monitoring, SHAP explanations, and drift-triggered automatic retraining.
+End-to-end MLOps pipeline for predicting loan approval: 
+- data processing
+- hyperparameter tuning across three model families
+- MLflow experiment tracking, FastAPI deployment
+- Kubernetes orchestration on SSPCloud
+- GitOps automation via ArgoCD
+- Prometheus/Grafana monitoring
+-  SHAP explanations
+- drift-triggered automatic retraining.
 
 ---
 
-## Live URLs (SSPCloud)
-
-Replace `<username>` with your SSPCloud username everywhere below.
+## Live URLs 
 
 | Service | URL pattern |
 |---------|-------------|
-| **Web UI** | `https://loan-api-<username>.user.lab.sspcloud.fr` |
-| **Swagger UI** | `https://loan-api-<username>.user.lab.sspcloud.fr/docs` |
-| **Prometheus metrics** | `https://loan-api-<username>.user.lab.sspcloud.fr/metrics` |
-| **Grafana dashboard** | `https://grafana-loan-<username>.user.lab.sspcloud.fr` (admin / admin) |
-| **MLflow UI** | `https://mlflow-<username>.user.lab.sspcloud.fr` |
+| **Web UI** | `https://loan-api-user-kbourbon.user.lab.sspcloud.fr` |
+| **Swagger UI** | `https://loan-api-user-kbourbon.user.lab.sspcloud.fr/docs` |
+| **Prometheus metrics** | `https://loan-api-user-kbourbon.user.lab.sspcloud.fr/metrics` |
+| **Grafana dashboard** | `https://grafana-loan-user-kbourbon.user.lab.sspcloud.fr` (admin / admin) |
+| **MLflow UI** | `https://mlflow-user-kbourbon.user.lab.sspcloud.fr` |
 
 Your username is the prefix of your SSPCloud namespace (e.g. namespace `user-johndoe` → username `johndoe`).
 
@@ -262,7 +268,7 @@ Positive SHAP values push toward approval, negative toward rejection.
 
 | Workflow | Trigger | What it does |
 |----------|---------|-------------|
-| `cd.yml` | Push touching `src/`, `Dockerfile`, `pyproject.toml`, `uv.lock` on main branch| Build Docker image → push to Docker Hub → update `deployment/deployment.yaml` image tag → wait 60s → GET `/health` → auto-rollback if error 503 |
+| `ci.yml` | Push touching `src/`, `Dockerfile`, `pyproject.toml`, `uv.lock` on main branch| Run unit test +  Build Docker image + push to Docker Hub  |
 | `retrain.yml` | Manual or every Monday 2am UTC | Full re-training of the model(run src/main.py) + MLflow registry update |
 | `drift_check.yml` | Daily 8am UTC | Download `predictions.jsonl` from S3 → KS + PSI analysis → trigger `retrain.yml` if drift detected |
 
@@ -330,10 +336,11 @@ You can monitor the pods by running:
 ```bash
 kubectl get pods -w  
 ```
-If everything goes well, you should see three pods: one for loan-api, one for prometheus and one for grafana. When the three pods are the status: "Running 1/1", they're ready and the application should be exposed.
+If everything goes well, you should see three pods: one for loan-api, one for prometheus and one for grafana. When the three pods are the status: "Running 1/1", they're ready and the application should be exposed on : **https://loan-api-<kubernetes-username>.user.lab.sspcloud.fr**
 
 
-### Architecture
+### Architecture of CI/CD
+
 ```mermaid
 flowchart LR
     A[src/ change] -->|push to main| B[CI workflow]
@@ -388,4 +395,6 @@ All constants are in `config.py`:
 | `TEST_SIZE` | 0.2 | Holdout fraction (split into calibration + eval) |
 | `F1_PROMOTION_THRESHOLD` | 0.5 | Minimum F1 required to promote a challenger to @champion |
 | `MLFLOW_MODEL_NAME` | `loan-approval-model` | Model name in the MLflow Registry |
+| `MLFLOW_MODEL_NAME` | `Loan Prediction Approval Experiments`| Name of Mlflow experiment |
+
 
