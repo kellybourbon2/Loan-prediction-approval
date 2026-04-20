@@ -31,7 +31,7 @@ metadata:
 spec:
   ingressClassName: onyxia
   rules:
-    - host: grafana-loan-user-kbourbon.user.lab.sspcloud.fr
+    - host: grafana-loan-api-user-kbourbon.user.lab.sspcloud.fr
       http:
         paths:
           - path: /
@@ -43,4 +43,4 @@ spec:
                   number: 3000
   tls:
     - hosts:
-        - grafana-loan-user-kbourbon.user.lab.sspcloud.fr
+        - grafana-loan-api-user-kbourbon.user.lab.sspcloud.fr

@@ -66,7 +66,7 @@ spec:
             - name: GF_AUTH_ANONYMOUS_ORG_ROLE
               value: "Viewer"
             - name: GF_SERVER_ROOT_URL
-              value: "https://grafana-loan-${USERNAME}.user.lab.sspcloud.fr"
+              value: "https://grafana-loan-api-user-kbourbon.user.lab.sspcloud.fr"
           volumeMounts:
             - name: datasources
               mountPath: /etc/grafana/provisioning/datasources

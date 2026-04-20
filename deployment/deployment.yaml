@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
         - name: loan-api
-          image: kellybrbn/loan-api:5a3b21ab6324f9408de7142869d5f78f95227e32
+          image: kellybrbn/loan-api:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
@@ -41,13 +41,13 @@ spec:
             httpGet:
               path: /health
               port: 8000
-            initialDelaySeconds: 180
+            initialDelaySeconds: 300
             periodSeconds: 20
             failureThreshold: 5
           readinessProbe:
             httpGet:
               path: /health
               port: 8000
-            initialDelaySeconds: 120
+            initialDelaySeconds: 300
             periodSeconds: 15
             failureThreshold: 10
