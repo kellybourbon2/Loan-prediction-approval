@@ -336,7 +336,7 @@ You can monitor the pods by running:
 ```bash
 kubectl get pods -w  
 ```
-If everything goes well, you should see three pods: one for loan-api, one for prometheus and one for grafana. When the three pods are the status: "Running 1/1", they're ready and the application should be exposed on : **https://loan-api-<kubernetes-username>.user.lab.sspcloud.fr**
+If everything goes well, you should see three pods: one for loan-api, one for prometheus and one for grafana. When the three pods are the status: "Running 1/1", they're ready and the application should be exposed on :   https://loan-api-kubernetes-username.user.lab.sspcloud.fr
 
 
 ### Architecture of CI/CD
