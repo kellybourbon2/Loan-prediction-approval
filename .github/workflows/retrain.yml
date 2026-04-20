@@ -39,15 +39,3 @@ jobs:
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.MLFLOW_TRACKING_PASSWORD }}
         run: uv run python src/main.py
 
-      - name: Trigger CI to rebuild image with new model
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'ci.yml',
-              ref: 'main',
-            });
-            core.notice('Retraining complete — CI triggered to rebuild image!');
