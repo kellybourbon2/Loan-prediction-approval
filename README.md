@@ -305,7 +305,11 @@ First, add your docker credentials to Github Action to be able to see the images
 
 ---
 
-## Kubernetes deployment (SSPCloud)
+## Kubernetes deployment 
+The deployment of the application is handled by a distinct GitOps repertory: 
+https://github.com/kellybourbon2/Loan-prediction-approval-deployment
+
+If you want to recreate the cluster kubernetes from scratch, you can download the folder deployment/ of this repertory and follow the next steps.
 
 **Warning**: You can't orchestrate the kubernetes cluster if you have not chosen the role "Admin" during the creation of your SSPCloud VSCode service.
 
@@ -324,7 +328,7 @@ Edit `secret.yaml` with your credentials. These are the same credentials than yo
 ```bash
 kubectl apply -f ./secret.yaml
 
-3. Adapt the different manifests kubernetes in the folder "deployment" by changing all the occurence of <user-name> with your own kubernetes username. In the deployment.yaml, file, also change "kellybrbn/loan-api" with your own docker image path.
+3. Adapt the different manifests kubernetes in the folder "deployment" by changing all the occurence of user-kbourbon with your own kubernetes username. In the deployment.yaml, file, also change "kellybrbn/loan-api" with your own docker image path.
 
 > Note that you can find your kubernetes username  in your environnement variables by running: 
 ```bash
@@ -334,15 +338,6 @@ env | grep ^KUBERNETES_NAMESPACE
 ```
 4. Give the yaml manifests to the cluster kubernetes 
 
-First give the kubernetes cluster the dashboard `loan_api.json` file, that is useful to monitor grafana dashboard as a configmap variable:
-
-```bash
-kubectl create configmap grafana-dashboards \
-  --from-file=./monitoring/grafana/dashboards/loan_api.json\
-  --dry-run=client -o yaml
-```
-
-Then, give the cluster all the manifests yaml from the deployment/ file: 
 ```bash
 kubectl apply -f deployment/
 ```
@@ -351,32 +346,8 @@ You can monitor the pods by running:
 ```bash
 kubectl get pods -w  
 ```
-If everything went well, you should see three pods: one for loan-api, one for prometheus and one for grafana. When the three pods are the status: "Running 1/1", they're ready.
+If everything goes well, you should see three pods: one for loan-api, one for prometheus and one for grafana. When the three pods are the status: "Running 1/1", they're ready and the application should be exposed.
 
-### One-time secrets setup
-
-
-
-```bash
-# AWS / MinIO credentials used by the API at runtime
-kubectl create secret generic loan-api-secret \
-  --from-literal=AWS_ACCESS_KEY_ID=<key> \
-  --from-literal=AWS_SECRET_ACCESS_KEY=<secret> \
-  --from-literal=AWS_SESSION_TOKEN=<token> \
-  --from-literal=AWS_S3_ENDPOINT=https://minio.lab.sspcloud.fr \
-  --from-literal=AWS_BUCKET_NAME=<bucket> \
-  -n user-<username>
-```
-
-### Deploy
-
-```bash
-kubectl apply -f deployment/ --recursive -n user-<username>
-```
-
-ArgoCD watches the `developement` branch (`deployment/` path) and syncs automatically on every push.
-
-The API connects to the MLflow service inside the cluster (`http://mlflow:5000`) — no local SQLite copy needed. The MLflow service itself uses S3 (`s3://<bucket>/mlruns`) as artifact backend.
 
 ### Architecture
 
@@ -384,15 +355,15 @@ The API connects to the MLflow service inside the cluster (`http://mlflow:5000`)
 GitHub push
     │
     ▼
-GitHub Actions CI  ──── lint + tests
+GitHub Actions CI  ──── lint + tests  ────── build Docker image ──── push to Docker Hub
     │
-    ▼
-GitHub Actions CD  ──── build Docker image ──── push to Docker Hub
-    │                                                   │
-    │                                    update deployment/deployment.yaml
+    ▼                                                   
+GitHub Actions CD  
+    │                                                   
+    │                                                    update deployment/deployment.yaml
     │                                                   │
     ▼                                                   ▼
-ArgoCD (SSPCloud) ──────────────────── sync Kubernetes manifests
+ArgoCD (SSPCloud) ──────────────────────────────────────sync Kubernetes manifests
     │
     ▼
 Pod: loan-api ──── reads @champion model from ──── MLflow service (SSPCloud)
@@ -449,24 +420,12 @@ All constants are in `config.py`:
 
 | Feature | Status |
 |---------|--------|
-| Development best practices (pre-commit, ruff, tests) | ✅ |
-| 3-way train / calibration / eval split (no leakage) | ✅ |
-| Hyperparameter tuning — XGBoost, CatBoost, RandomForest | ✅ |
-| Early stopping on boosted models (CV) | ✅ |
-| Probability calibration (isotonic regression) | ✅ |
-| Champion/challenger registry with regression guard | ✅ |
-| Confusion matrix logged as MLflow artifact | ✅ |
-| FastAPI — single, batch (max 500), explain, health | ✅ |
-| SHAP explanations (no external shap library) | ✅ |
-| Thread-safe metrics, no traceback leakage | ✅ |
-| Prediction logger → S3 sync (every 10 predictions + 60s timer) | ✅ |
-| Dockerfile + Docker Hub CI/CD | ✅ |
-| Kubernetes deployment (SSPCloud + ArgoCD GitOps) | ✅ |
-| MLflow as Kubernetes service (no ephemeral SQLite) | ✅ |
-| Post-deploy healthcheck + automatic rollback | ✅ |
-| Prometheus + Grafana monitoring (8 metrics, 6 panels) | ✅ |
-| Grafana alerting (3 rules) | ✅ |
-| Daily drift detection (KS + PSI) → auto-retraining | ✅ |
-| Guard: drift check skipped if no logs yet | ✅ |
-| Unit tests (28 total) | ✅ |
-| Integration tests (real HTTP) | ✅ |
+| Respecter la checklist des bonnes pratiques de développement | ✅ |
+| Développer un modèle de ML qui répond à un besoin métier | ✅ |
+| Entraîner le modèle via validation croisée, avec une procédure de fine-tuning des hyperparamètres | ✅ |
+| Formaliser le processus de fine-tuning de manière reproductible via MLFlow | ✅ |
+| Construire une API avec Fastapi pour exposer le meilleur modèle | ✅ |
+| Créer une image Docker pour mettre à disposition l'API | ✅ |
+| Déployer l'API sur le SSP Cloud | ✅ |
+| Industrialiser le déploiement en mode GitOps avec ArgoCD | ✅ |
+| Gérer le monitoring de l'application : logs, dashboard de suivi des performances, etc. | ✅ |

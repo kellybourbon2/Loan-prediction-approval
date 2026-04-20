@@ -1,7 +1,0 @@
-name: Loan Prediction Approval Experiments
-
-python_env: python_env.yaml
-
-entry_points:
-  main:
-    command: "uv run python src/main.py"
