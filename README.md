@@ -272,10 +272,10 @@ Positive SHAP values push toward approval, negative toward rejection.
 |----------|---------|-------------|
 | `ci.yml` | Every push | Ruff lint + format check → unit tests → integration tests against `API_URL` |
 | `cd.yml` | Push touching `src/`, `Dockerfile`, `pyproject.toml`, `uv.lock` on main branch| Build Docker image → push to Docker Hub → update `deployment/deployment.yaml` image tag → wait 60s → GET `/health` → auto-rollback if error 503 |
-| `retrain.yml` | Manual or every Monday 2am UTC | Full retraining + MLflow registry update |
+| `retrain.yml` | Manual or every Monday 2am UTC | Full re-training of the model(run src/main.py) + MLflow registry update |
 | `drift_check.yml` | Daily 8am UTC | Download `predictions.jsonl` from S3 → KS + PSI analysis → trigger `retrain.yml` if drift detected |
 
->Note that the CD is performed by a GitHub Actions bot using the automatically generated GITHUB_TOKEN. We chose this approach to ensure durable deployment: even if a user account is removed from GitHub, deployments will still be handled by the bot.
+**NB:** Note that the CD workflows (cd, retrained and drift_check) are performed by a GitHub Actions bot using the automatically generated GITHUB_TOKEN. We chose this approach to ensure durable deployment: even if a user account is removed from GitHub, deployments will still be handled by the bot.
 
 ### Required GitHub Actions configuration
 
@@ -307,23 +307,51 @@ First, add your docker credentials to Github Action to be able to see the images
 
 ## Kubernetes deployment (SSPCloud)
 
-**Warning**: You can't orchestrate the kubernetes cluster if you have not chosen "Admin" as role during the creation of your SSPCloud VSCode service.
+**Warning**: You can't orchestrate the kubernetes cluster if you have not chosen the role "Admin" during the creation of your SSPCloud VSCode service.
+
+The goal here is to create three pods kubernetes to be able to run our api from any machine:
+- one pod building an environement from the official prometheus image pulled
+- one pod building an environement from the official grafana image pulled
+- one pod building an environement from our loan-api image pulled, that we've build and push earlier to the dockerhub.
 
 1. Create a secret yaml manifest at the root of the project:
 ```bash
 cp secret.example.yaml secret.yaml
 ```
-Edit `secret.yaml` with your credentials. These are the same credentials than you enter to your .env file earlier.
+Edit `secret.yaml` with your credentials. These are the same credentials than you enter to your .env file earlier. The secret will be named "loan-api-secret".
 
 2. Give this secret to your cluster kubernetes
 ```bash
 kubectl apply -f ./secret.yaml
-```
-3. Apply the yaml manifests to the cluster
+
+3. Adapt the different manifests kubernetes in the folder "deployment" by changing all the occurence of <user-name> with your own kubernetes username. In the deployment.yaml, file, also change "kellybrbn/loan-api" with your own docker image path.
+
+> Note that you can find your kubernetes username  in your environnement variables by running: 
 ```bash
-envsubst < deployment/ | kubectl apply -f -
+env | grep ^KUBERNETES_NAMESPACE
 ```
->envsubst enables the variable $KUBERNETES_USERNAME$ in the manifests to be automatically changed into the variable of the local cluster.
+
+```
+4. Give the yaml manifests to the cluster kubernetes 
+
+First give the kubernetes cluster the dashboard `loan_api.json` file, that is useful to monitor grafana dashboard as a configmap variable:
+
+```bash
+kubectl create configmap grafana-dashboards \
+  --from-file=./monitoring/grafana/dashboards/loan_api.json\
+  --dry-run=client -o yaml
+```
+
+Then, give the cluster all the manifests yaml from the deployment/ file: 
+```bash
+kubectl apply -f deployment/
+```
+
+You can monitor the pods by running:
+```bash
+kubectl get pods -w  
+```
+If everything went well, you should see three pods: one for loan-api, one for prometheus and one for grafana. When the three pods are the status: "Running 1/1", they're ready.
 
 ### One-time secrets setup
 
