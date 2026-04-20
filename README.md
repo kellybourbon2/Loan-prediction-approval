@@ -121,17 +121,9 @@ What happens:
 | Register | Model registered in MLflow Registry as `@challenger` |
 | Promote | Promoted to `@champion` **only if** F1 ≥ 0.5 **and** F1 > current champion (regression guard) |
 
-Expected results on the eval split (may vary slightly due to Hyperopt stochasticity):
-
-| Metric | Typical value |
-|--------|--------------|
-| F1 | ~0.88 |
-| Accuracy | ~0.93 |
-| Recall | ~0.87 |
-| Precision | ~0.89 |
 
 To inspect runs after training, you can open manually the link corresponding to your MLFLOW_TRACKING_URI variable.
-> You'll see all the metrics in Model Training > Loan Approval Experiments
+> You'll see all the metrics in Model Training > "Loan Approval Experiments"
 
 ---
 
@@ -396,6 +388,5 @@ All constants are in `config.py`:
 | `RANDOM_STATE` | 42 | Seed for all random operations — guarantees reproducibility |
 | `TEST_SIZE` | 0.2 | Holdout fraction (split into calibration + eval) |
 | `F1_PROMOTION_THRESHOLD` | 0.5 | Minimum F1 required to promote a challenger to @champion |
-| `MLFLOW_TRACKING_URI` | `...` | Overridden by env var in Kubernetes (`http://mlflow:5000`) |
 | `MLFLOW_MODEL_NAME` | `loan-approval-model` | Model name in the MLflow Registry |
 
