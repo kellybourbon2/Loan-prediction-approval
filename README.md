@@ -22,7 +22,6 @@ End-to-end MLOps pipeline for predicting loan approval:
 | **Swagger UI** | `https://loan-api-user-kbourbon.user.lab.sspcloud.fr/docs` |
 | **Prometheus metrics** | `https://loan-api-user-kbourbon.user.lab.sspcloud.fr/metrics` |
 | **Grafana dashboard** | `https://grafana-loan-user-kbourbon.user.lab.sspcloud.fr` (admin / admin) |
-| **MLflow UI** | `https://mlflow-user-kbourbon.user.lab.sspcloud.fr` |
 
 Your username is the prefix of your SSPCloud namespace (e.g. namespace `user-johndoe` → username `johndoe`).
 
