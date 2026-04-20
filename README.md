@@ -281,16 +281,6 @@ Positive SHAP values push toward approval, negative toward rejection.
 
 Go to **Settings → Secrets and variables → Actions** and add:
 
-First, add your docker credentials to Github Action to be able to see the images built on your dockerhub account:
-
-| Name | Type | Value |
-|------|------|-------|
-| `DOCKERHUB_TOKEN` | Secret | Docker Hub access token |
-| `DOCKERHUB_USERNAME` | Variable | Docker Hub username |
-
->Make sure to create a DOCKERHUB_TOKEN with "Read" scope. 
-
-: 
 
 | Name | Type | Value |
 |------|------|-------|
@@ -303,7 +293,10 @@ First, add your docker credentials to Github Action to be able to see the images
 | `DOCKERHUB_USERNAME` | Variable | Docker Hub username |
 | `API_URL` | Variable | Deployed API base URL — enables integration tests and post-deploy healthcheck |
 
----
+--
+
+>Make sure to have created a DOCKERHUB_TOKEN with "Read" scope (and that your docker image is public!!)
+
 
 ## Kubernetes deployment 
 The deployment of the application is handled by a distinct GitOps repertory: 
@@ -350,29 +343,21 @@ If everything goes well, you should see three pods: one for loan-api, one for pr
 
 
 ### Architecture
+```mermaid
+flowchart LR
+    A[src/ change] -->|push to main| B[CI workflow]
+    B --> C[lint + tests]
+    C --> D[build Docker image]
+    D -->|push sha tag| E[Docker Hub]
+    D -->|PAT push| F[GitOps repo\ndeployment.yaml]
+    F -->|detects change| G[ArgoCD]
+    G -->|sync| H[Kubernetes cluster\nSSP Cloud]
 
+    H -->|prediction logs| I[(S3 + MLflow)]
+    I -->|daily| J[Drift check]
+    J -->|drift detected| K[Retrain]
+    K -->|triggers| B
 ```
-GitHub push
-    │
-    ▼
-GitHub Actions CI  ──── lint + tests  ────── build Docker image ──── push to Docker Hub
-    │
-    ▼                                                   
-GitHub Actions CD  
-    │                                                   
-    │                                                    update deployment/deployment.yaml
-    │                                                   │
-    ▼                                                   ▼
-ArgoCD (SSPCloud) ──────────────────────────────────────sync Kubernetes manifests
-    │
-    ▼
-Pod: loan-api ──── reads @champion model from ──── MLflow service (SSPCloud)
-    │                                                   │
-    ├── POST /predict ──────────────────────────────────┤
-    ├── GET  /metrics ── Prometheus ── Grafana          │
-    └── logs/predictions.jsonl ── S3 sync ── drift_check.yml
-```
-
 ---
 
 ## Monitoring
@@ -414,18 +399,3 @@ All constants are in `config.py`:
 | `MLFLOW_TRACKING_URI` | `...` | Overridden by env var in Kubernetes (`http://mlflow:5000`) |
 | `MLFLOW_MODEL_NAME` | `loan-approval-model` | Model name in the MLflow Registry |
 
----
-
-## Project checklist
-
-| Feature | Status |
-|---------|--------|
-| Respecter la checklist des bonnes pratiques de développement | ✅ |
-| Développer un modèle de ML qui répond à un besoin métier | ✅ |
-| Entraîner le modèle via validation croisée, avec une procédure de fine-tuning des hyperparamètres | ✅ |
-| Formaliser le processus de fine-tuning de manière reproductible via MLFlow | ✅ |
-| Construire une API avec Fastapi pour exposer le meilleur modèle | ✅ |
-| Créer une image Docker pour mettre à disposition l'API | ✅ |
-| Déployer l'API sur le SSP Cloud | ✅ |
-| Industrialiser le déploiement en mode GitOps avec ArgoCD | ✅ |
-| Gérer le monitoring de l'application : logs, dashboard de suivi des performances, etc. | ✅ |
